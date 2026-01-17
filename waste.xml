@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>WASTE MANAGEMENT</name>
+	<gx:CascadingStyle kml:id="__managed_style_048D791FDB36BE86991E">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=f57c00&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_450F9B198E36BE86991D">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=f57c00&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_3154F0D15936BE86991D">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_450F9B198E36BE86991D</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_048D791FDB36BE86991E</styleUrl>
+		</Pair>
+	</StyleMap>
+	<gx:CascadingStyle kml:id="__managed_style_24DBDFF9AE36BE86991D">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=757575&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_15AA0F0DC936BE86991D">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=757575&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_076E153E1D36BE86991D">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_15AA0F0DC936BE86991D</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_24DBDFF9AE36BE86991D</styleUrl>
+		</Pair>
+	</StyleMap>
+	<gx:CascadingStyle kml:id="__managed_style_01994CE0C936BE86991C">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_16E8D1B69A36BE86991C">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_098C63D3A636BE86991B">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_01994CE0C936BE86991C</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_16E8D1B69A36BE86991C</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Folder id="091C6E0E253605613FB5">
+		<name>WASTE MANAGEMENT</name>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+	</Folder>
+	<Placemark id="0179DD3A8936BE70B7A2">
+		<name>AMBALAJ ATIK-KAPALI SİSTEM</name>
+		<LookAt>
+			<longitude>30.66249011529842</longitude>
+			<latitude>36.89267928744974</latitude>
+			<altitude>37.1654568697029</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>93.20864049811462</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+		<Point>
+			<coordinates>30.66244569837842,36.89268289527399,37.10073559356139</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="09DA23158A36BE735DF0">
+		<name>DİĞER EVSEL ATIK-5 ADET</name>
+		<LookAt>
+			<longitude>30.66254166528108</longitude>
+			<latitude>36.89215843836044</latitude>
+			<altitude>35.17141058863623</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>89.01988044261998</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.6626586991167,36.89209683161101,35.32632071934975</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="07734B0DFE36BE74703E">
+		<name>ATIK GEÇİCİ DEPOLAMA</name>
+		<LookAt>
+			<longitude>30.66254166528108</longitude>
+			<latitude>36.89215843836044</latitude>
+			<altitude>35.17141058863623</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>89.01988044261998</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_3154F0D15936BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.66265076468146,36.89213279087829,35.32630122266552</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="069A6F30A636BE7587B2">
+		<name>AMBALAJ ATIK-KAFES SİSTEM</name>
+		<LookAt>
+			<longitude>30.66224195537897</longitude>
+			<latitude>36.89222943226011</latitude>
+			<altitude>34.33750650549405</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>162.1702208468014</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+		<Point>
+			<coordinates>30.66267369754764,36.89208987538125,35.32668131039721</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0B4BC6DF0536BE790907">
+		<name>DİĞER EVSEL ATIK-1 ADET</name>
+		<LookAt>
+			<longitude>30.66268481152862</longitude>
+			<latitude>36.89229356505423</latitude>
+			<altitude>36.11597490615329</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30.00000393825584</gx:fovy>
+			<range>740.0014592582738</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.66315359699464,36.89183803537679,34.74291474169222</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="08805F949B36BE7D04AE">
+		<name>DİĞER EVSEL ATIK-2 ADET</name>
+		<LookAt>
+			<longitude>30.66168764407357</longitude>
+			<latitude>36.8903084454933</latitude>
+			<altitude>29.52678819408766</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30.00000393825584</gx:fovy>
+			<range>120.5576688634574</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.6617662399435,36.89024589067662,29.40459373575345</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0CAE91208236BE817409">
+		<name>DİĞER EVSEL ATIK-1 ADET</name>
+		<LookAt>
+			<longitude>30.66300576766275</longitude>
+			<latitude>36.89278875461729</latitude>
+			<altitude>37.97038250426331</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30.00000393825584</gx:fovy>
+			<range>153.8680742889301</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.66340591780797,36.89285810539063,38.61306648385744</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="09E56B598A36BE880DD4">
+		<name>DİĞER EVSEL ATIK-3 ADET</name>
+		<LookAt>
+			<longitude>30.65983549318285</longitude>
+			<latitude>36.89173903450233</latitude>
+			<altitude>30.94659241299074</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>402.3117169702164</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.66008259571377,36.89107993745657,30.38116036090195</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0BD6220ABC36BE88B4B1">
+		<name>AMBALAJ ATIK-KONTEYNER</name>
+		<LookAt>
+			<longitude>30.65997402125544</longitude>
+			<latitude>36.8912692140121</latitude>
+			<altitude>30.17208972166242</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>249.6756132088558</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+		<Point>
+			<coordinates>30.66008259571377,36.89107993745657,30.38116036090195</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0F2B979D9536BE8A991F">
+		<name>DİĞER EVSEL ATIK- 2 ADET</name>
+		<LookAt>
+			<longitude>30.65651353695466</longitude>
+			<latitude>36.89218360649441</latitude>
+			<altitude>32.20761080452426</altitude>
+			<heading>359.999999997088</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>241.8103875765155</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.65630473109469,36.89219707097916,32.36387338154613</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="08DFDF8CA636BE8E0A4B">
+		<name>AMBALAJ ATIK-KONTEYNER</name>
+		<LookAt>
+			<longitude>30.65651353690172</longitude>
+			<latitude>36.89218360652611</latitude>
+			<altitude>32.20761080452426</altitude>
+			<heading>359.999999997088</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>241.8103875765155</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+		<Point>
+			<coordinates>30.65630473109469,36.89219707097916,32.22422977844235</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0FDE19055F36BE8F1E93">
+		<name>DİĞER EVSEL ATIK-1 ADET</name>
+		<LookAt>
+			<longitude>30.65620013982255</longitude>
+			<latitude>36.89212860651759</latitude>
+			<altitude>32.32060232287382</altitude>
+			<heading>1.207418269725733e-06</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>175.9167159614844</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.65584315057433,36.89208471567611,32.90531949003381</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0700BE808D36BE91E707">
+		<name>AMBALAJ ATIK-KAPALI SİSTEM</name>
+		<LookAt>
+			<longitude>30.65725414177407</longitude>
+			<latitude>36.89241689468369</latitude>
+			<altitude>32.71412052982073</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>293.5782742521405</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_098C63D3A636BE86991B</styleUrl>
+		<Point>
+			<coordinates>30.65829296203896,36.89248884424889,32.92539186967056</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="03FDD5CE6B36BE929B88">
+		<name>DİĞER EVSEL ATIK-3 ADET</name>
+		<LookAt>
+			<longitude>30.65725414177407</longitude>
+			<latitude>36.89241689468369</latitude>
+			<altitude>32.71412052982073</altitude>
+			<heading>0</heading>
+			<tilt>0</tilt>
+			<gx:fovy>30</gx:fovy>
+			<range>293.5782742521405</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_076E153E1D36BE86991D</styleUrl>
+		<Point>
+			<coordinates>30.65745240445134,36.89244727351976,33.25897832321651</coordinates>
+		</Point>
+	</Placemark>
+</Document>
+</kml>
