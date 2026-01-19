@@ -16,6 +16,61 @@ html, body, #root {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+.marker-popup {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-width: 200px;
+}
+
+.marker-popup-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.marker-popup-details {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.marker-popup-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.marker-popup-label {
+  color: #888;
+}
+
+.marker-popup-value {
+  font-weight: 500;
+  color: #333;
+}
+
+.marker-delete-btn {
+  width: 100%;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(255, 71, 87, 0.2);
+}
+
+.marker-delete-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 71, 87, 0.3);
+}
+
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
