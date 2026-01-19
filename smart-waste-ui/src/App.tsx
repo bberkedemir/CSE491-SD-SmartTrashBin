@@ -145,16 +145,26 @@ const App: React.FC = () => {
       if (!isAddMode) return;
       popup
         .setLatLng(e.latlng)
-        .setContent(`Tıkladığın yer: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)} 
-          <br/> 
-          <div>
-            <label>add marker name</label>
-            <input id="addTitle" type="text" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 200px; background-color: #ffffff; color: #000000"/>
+        .setContent(`
+          <div class="popup-container">
+            <div class="popup-coords">
+              📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}
+            </div>
+
+            <div class="popup-field">
+              <label class="popup-label">Marker İsmi</label>
+              <input 
+                id="addTitle" 
+                type="text" 
+                placeholder="Başlık girin..."
+                class="popup-input"
+              />
+            </div>
+
+            <button id="addMarkerBtn" class="popup-button">
+              ✓ Marker Ekle
+            </button>
           </div>
-          <div>
-            <button id="addMarkerBtn" style="margin-top: 8px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Ekle</button>
-          </div>
-         
         `)
         .openOn(mapRef.current!);
       
