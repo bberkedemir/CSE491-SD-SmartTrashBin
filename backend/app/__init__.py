@@ -1,0 +1,1 @@
+# FastAPI Backend for Smart Waste Bin Management
