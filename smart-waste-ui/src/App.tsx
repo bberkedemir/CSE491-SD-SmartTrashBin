@@ -1,51 +1,165 @@
 import { useEffect, useRef, useState } from "react";
-import L, { circle, latLng, Map as LeafletMap, marker, polygon } from "leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Box, Button } from "@mui/material";
+import { Box, Button, LinearProgress, Snackbar, Alert } from "@mui/material";
 import trashBin from "./assets/binRed.png";
 import './App.css';
 
-const App: React.FC = () => {
-  const mapRef = useRef<LeafletMap | null>(null);
-  
-  type BinPoint = {
-    id: number;
-    lat: number;
-    lng: number;
-    title: string;
-    fill: number;
-  };
+interface BinPoint {
+  id: number;
+  lat: number;
+  lng: number;
+  title: string;
+  fill: number;
+}
 
+const App: React.FC = () => {
+  const mapRef = useRef<L.Map | null>(null);
+  
   const greenIcon = L.icon({
     iconUrl: trashBin,
     shadowUrl: trashBin,
-
-    iconSize:     [40, 40], // size of the icon
-    shadowSize:   [0, 0], // size of the shadow
-    iconAnchor:   [20, 40], // point of the icon which will correspond to marker's location
-    shadowAnchor: [0, 0],  // the same for the shadow
-    popupAnchor:  [-3, -76] // point from which the popup should open relative to the iconAnchor
+    iconSize:     [40, 40],
+    shadowSize:   [0, 0],
+    iconAnchor:   [20, 40],
+    shadowAnchor: [0, 0],
+    popupAnchor:  [-3, -76]
   });
-  
 
-  const points: BinPoint[] = [
-    {id: 1, lat: 36.89694, lng: 30.64797, title: "Test1", fill: 33 },
-    {id: 2, lat: 36.89617, lng: 30.65224, title: "Test2", fill: 53 },
-    {id: 3, lat: 36.89267928744974, lng: 30.66249011529842, title: 'AMBALAJ ATIK-KAPALI SİSTEM', fill: 33,},
-    {id: 4, lat: 36.89215843836044, lng: 30.66254166528108, title: 'DİĞER EVSEL ATIK-5 ADET', fill: 33,},
-    {id: 5, lat: 36.89215843836044, lng: 30.66254166528108, title: 'ATIK GEÇİCİ DEPOLAMA', fill: 33,},
-    {id: 6, lat: 36.89222943226011, lng: 30.66224195537897, title: 'AMBALAJ ATIK-KAFES SİSTEM', fill: 33,},
-    {id: 7, lat: 36.89229356505423, lng: 30.66268481152862, title: 'DİĞER EVSEL ATIK-1 ADET', fill: 33,},
-    {id: 8, lat: 36.8903084454933, lng: 30.66168764407357, title: 'DİĞER EVSEL ATIK-2 ADET', fill: 33,},
-    {id: 9, lat: 36.89278875461729, lng: 30.66300576766275, title: 'DİĞER EVSEL ATIK-1 ADET', fill: 33,},
-    {id: 10, lat: 36.89173903450233, lng: 30.65983549318285, title: 'DİĞER EVSEL ATIK-3 ADET', fill: 33,},
-    {id: 11, lat: 36.8912692140121, lng: 30.65997402125544, title: 'AMBALAJ ATIK-KONTEYNER', fill: 33,},
-    {id: 12, lat: 36.89218360649441, lng: 30.65651353695466, title: 'DİĞER EVSEL ATIK- 2 ADET', fill: 33,},
-    {id: 13, lat: 36.89218360652611, lng: 30.65651353690172, title: 'AMBALAJ ATIK-KONTEYNER', fill: 33,},
-    {id: 14, lat: 36.89212860651759, lng: 30.65620013982255, title: 'DİĞER EVSEL ATIK-1 ADET', fill: 33,},
-    {id: 15, lat: 36.89241689468369, lng: 30.65725414177407, title: 'AMBALAJ ATIK-KAPALI SİSTEM', fill: 33,},
-    {id: 16, lat: 36.89241689468369, lng: 30.65725414177407, title: 'DİĞER EVSEL ATIK-3 ADET', fill: 33,},
-  ];
+  const [points, setPoints] = useState<BinPoint[]>([]);
+
+  // API functions
+  const fetchBins = async () => {
+    try {
+      const response = await fetch('/api/v1/bins');
+      if (!response.ok) throw new Error('Failed to fetch bins');
+      const data = await response.json();
+      setPoints(data.bins);
+    } catch (error) {
+      console.error('Error fetching bins:', error);
+    }
+  };
+
+  const createBin = async (binData: Omit<BinPoint, 'id'>) => {
+    try {
+      const response = await fetch('/api/v1/bins', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(binData),
+      });
+      if (!response.ok) throw new Error('Failed to create bin');
+      const newBin = await response.json();
+      setPoints(prev => [...prev, newBin]);
+      return newBin;
+    } catch (error) {
+      console.error('Error creating bin:', error);
+      throw error;
+    }
+  };
+
+  const deleteBin = async (binId: number) => {
+    try {
+      const response = await fetch(`/api/v1/bins/${binId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete bin');
+      setPoints(prev => prev.filter(bin => bin.id !== binId));
+    } catch (error) {
+      console.error('Error deleting bin:', error);
+      throw error;
+    }
+  };
+
+  // Upload functionality
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({ open: false, message: '', severity: 'info' });
+
+  const uploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setNotification({ open: false, message: '', severity: 'info' });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Create XMLHttpRequest for progress tracking
+      const xhr = new XMLHttpRequest();
+
+      // Progress tracking
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(percentComplete);
+        }
+      });
+
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 201) {
+          const response = JSON.parse(xhr.responseText);
+          
+          // Show success notification
+          setNotification({
+            open: true,
+            message: response.message,
+            severity: response.results.skipped_count > 0 ? 'warning' : 'success'
+          });
+
+          // Refresh bins data
+          fetchBins();
+        } else {
+          const error = JSON.parse(xhr.responseText);
+          setNotification({
+            open: true,
+            message: error.detail || 'Upload failed',
+            severity: 'error'
+          });
+        }
+        
+        setIsUploading(false);
+        setUploadProgress(0);
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        setNotification({
+          open: true,
+          message: 'Network error during upload',
+          severity: 'error'
+        });
+        setIsUploading(false);
+        setUploadProgress(0);
+      });
+
+      // Send request
+      xhr.open('POST', '/api/v1/bins/upload');
+      xhr.send(formData);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      setNotification({
+        open: true,
+        message: 'Upload failed. Please try again.',
+        severity: 'error'
+      });
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+
+    // Reset file input
+    event.target.value = '';
+  };
 
   function addMarker(
     map: L.Map,
@@ -53,7 +167,6 @@ const App: React.FC = () => {
     icon: L.Icon,
     onDelete: (id: number, marker: L.Marker) => void
   ) {
-
     const marker = L.marker([data.lat, data.lng], { icon }).addTo(map);
 
     const popupHtml = `
@@ -70,7 +183,7 @@ const App: React.FC = () => {
           </div>
           <div class="marker-popup-row">
             <span class="marker-popup-label">Dolu:</span>
-            <span class="marker-popup-value">%${data.fill}</span>
+            <span class="marker-popup-value">%${data.fill.toFixed(2)}</span>
           </div>
         </div>
         <button id="del-${data.id}" class="marker-delete-btn">
@@ -85,23 +198,21 @@ const App: React.FC = () => {
       const btn = document.getElementById(`del-${data.id}`);
       if (btn) {
         btn.onclick = () => {
-          console.log("removed", data.id)
+          console.log("removed", data.id);
           onDelete(data.id, marker);
         };
       }
     });
     
     return marker;
-
-    
   }
-  
+
   // Leaflet init
   useEffect(() => {
     if (mapRef.current) return;
 
     // Leaflet map init
-    mapRef.current = L.map("map").setView([36.89488259077369, 30.649857090761955], 13, );
+    mapRef.current = L.map("map").setView([36.89488259077369, 30.649857090761955], 13);
 
     // Tile layer
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -111,6 +222,22 @@ const App: React.FC = () => {
         '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapRef.current);
 
+    // Fetch bins on component mount
+    fetchBins();
+  }, []);
+
+  // Update markers when points change
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing markers
+    mapRef.current.eachLayer((layer) => {
+      if (layer instanceof L.Marker) {
+        mapRef.current?.removeLayer(layer);
+      }
+    });
+
+    // Add markers for each bin
     points.forEach(p => {
       addMarker(
         mapRef.current!, 
@@ -119,18 +246,13 @@ const App: React.FC = () => {
           lng: p.lng,
           title: p.title,
           fill: p.fill
-        }, greenIcon, (id, marker) => {
+        }, greenIcon, (binId, marker) => {
+          deleteBin(binId);
           marker.removeFrom(mapRef.current!);
-        } )
-      
-    })
-    console.log(points);
-  
-
-  }, []);
-
-
-
+        } 
+      );
+    });
+  }, [points]);
 
   const [isAddMode, setIsAddMode] = useState(false);
     
@@ -172,25 +294,24 @@ const App: React.FC = () => {
         const addButton = document.getElementById("addMarkerBtn");
         if (!addButton) return;
 
-        addButton.onclick = () => {
+        addButton.onclick = async () => {
           const input = document.getElementById("addTitle") as HTMLInputElement | null;
           const markerTitle = input?.value || "Untitled Marker";
-          const newMarker = {
-              id: Date.now(),
+          const newMarkerData = {
               lat: e.latlng.lat,
               lng: e.latlng.lng,
               title: markerTitle,
-              fill: 70
+              fill: Math.floor(Math.random() * 101)
             };
 
-          addMarker(mapRef.current!, newMarker, greenIcon, (id, marker) => {
-              marker.removeFrom(mapRef.current!);
-            });
-          points.push(newMarker);
-          console.log(`added new marker id: ${newMarker.id}, title: ${newMarker.title}`)
-          console.log(points);
-
-          popup.close();
+          try {
+            await createBin(newMarkerData);
+            console.log(`added new marker title: ${newMarkerData.title}`);
+            popup.close();
+          } catch (error) {
+            console.error('Failed to create bin:', error);
+            alert('Failed to create bin. Please try again.');
+          }
         };
       });
     };
@@ -199,50 +320,148 @@ const App: React.FC = () => {
 
     return () => {
       mapRef.current?.off("click", onMapClick);
-      popup.off("add"); // Clean up popup listener
+      popup.off("add");
     };
-  }, [isAddMode]);
+  }, [isAddMode, createBin]);
     
-
   return (
     <>
-    <Box sx={{ height: "100vh", width: "100vw" }}>
-      {/* Leaflet map container */}
-      <Box id="map" sx={{ height: "100%", width: "100%" }} />
-    </Box>
-    <Button 
-      sx={{
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
-        width: "140px", 
-        height: "44px", 
-        zIndex: 1000,
-        bgcolor: isAddMode ? "#ff4757" : "#23a200",
-        color: "#ffffff",
-        fontWeight: 600,
-        fontSize: "14px",
-        borderRadius: "8px",
-        textTransform: "none",
-        boxShadow: isAddMode 
-          ? "0 4px 12px rgba(255, 71, 87, 0.4)" 
-          : "0 4px 12px rgba(35, 162, 0, 0.4)",
-        transition: "all 0.3s ease",
-        '&:hover': {
-          bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
-          transform: "translateY(-2px)",
+      <Box sx={{ height: "100vh", width: "100vw" }}>
+        {/* Leaflet map container */}
+        <Box id="map" sx={{ height: "100%", width: "100%" }} />
+      </Box>
+
+      {/* Hidden file input for upload */}
+      <input
+        type="file"
+        accept=".json,.txt,.csv"
+        onChange={uploadFile}
+        style={{ display: 'none' }}
+        id="file-upload-input"
+      />
+
+      {/* Upload File Button */}
+      <Button 
+        variant="contained"
+        component="label"
+        htmlFor="file-upload-input"
+        disabled={isUploading}
+        sx={{
+          position: 'absolute',
+          bottom: 70,
+          right: 20,
+          width: "140px", 
+          height: "44px", 
+          zIndex: 1000,
+          bgcolor: "#007bff",
+          color: "#ffffff",
+          fontWeight: 600,
+          fontSize: "14px",
+          borderRadius: "8px",
+          textTransform: "none",
+          boxShadow: "0 4px 12px rgba(0, 123, 255, 0.3)",
+          transition: "all 0.3s ease",
+          '&:hover': {
+            bgcolor: "#0056b3",
+            transform: "translateY(-2px)",
+            boxShadow: "0 6px 16px rgba(0, 123, 255, 0.4)",
+          },
+          '&:active': {
+            transform: "translateY(0px)",
+          },
+          '&:disabled': {
+            bgcolor: "#6c757d",
+            color: "#ffffff",
+            boxShadow: "none",
+          }
+        }} 
+      >
+        {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Upload File"}
+      </Button>
+
+      {/* Progress Bar */}
+      {isUploading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 120,
+            right: 20,
+            left: 20,
+            zIndex: 999,
+          }}
+        >
+          <LinearProgress 
+            variant="determinate" 
+            value={uploadProgress}
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: 'rgba(255, 255, 255, 0.3)',
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: '#007bff',
+                borderRadius: 3,
+              }
+            }}
+          />
+        </Box>
+      )}
+
+      {/* Add Marker Button */}
+      <Button 
+        sx={{
+          position: 'absolute',
+          bottom: 20,
+          right: 20,
+          width: "140px", 
+          height: "44px", 
+          zIndex: 1000,
+          bgcolor: isAddMode ? "#ff4757" : "#23a200",
+          color: "#ffffff",
+          fontWeight: 600,
+          fontSize: "14px",
+          borderRadius: "8px",
+          textTransform: "none",
           boxShadow: isAddMode 
-            ? "0 6px 16px rgba(255, 71, 87, 0.5)" 
-            : "0 6px 16px rgba(35, 162, 0, 0.5)",
-        },
-        '&:active': {
-          transform: "translateY(0px)",
-        }
-      }} 
-      onClick={() => setIsAddMode(!isAddMode)}
-    >
-      {isAddMode ? "✕ Cancel" : "+ Add Marker"}
-    </Button>
+            ? "0 4px 12px rgba(255, 71, 87, 0.4)" 
+            : "0 4px 12px rgba(35, 162, 0, 0.4)",
+          transition: "all 0.3s ease",
+          '&:hover': {
+            bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
+            transform: "translateY(-2px)",
+            boxShadow: isAddMode 
+              ? "0 6px 16px rgba(255, 71, 87, 0.5)" 
+              : "0 6px 16px rgba(35, 162, 0, 0.5)",
+          },
+          '&:active': {
+            transform: "translateY(0px)",
+          }
+        }} 
+        onClick={() => setIsAddMode(!isAddMode)}
+      >
+        {isAddMode ? "✕ Cancel" : "+ Add Marker"}
+      </Button>
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{
+          zIndex: 2000,
+        }}
+      >
+        <Alert 
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+          severity={notification.severity}
+          sx={{
+            minWidth: '300px',
+            fontSize: '14px',
+          }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

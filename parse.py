@@ -1,9 +1,12 @@
 import xml.etree.ElementTree as ET
+import json
 
 tree = ET.parse("waste.xml")
 root = tree.getroot()
 
 sonuc = []
+
+id_counter = 4  # id üretmek için
 
 for placemark in root.iter():
     if placemark.tag.endswith("Placemark"):
@@ -16,14 +19,16 @@ for placemark in root.iter():
 
             if lat is not None and lng is not None:
                 sonuc.append({
-                    "name": name.text.strip(),
+                    "id": id_counter,
                     "lat": float(lat.text),
-                    "lng": float(lng.text)
+                    "lng": float(lng.text),
+                    "title": name.text.strip(),
+                    "fill": 33
                 })
+                id_counter += 1
 
 print("Bulunan kayıt sayısı:", len(sonuc))
 
-with open("sonuc.txt", "w", encoding="utf-8") as f:
-    for s in sonuc:
-        """ f.write(f"{s['name']}, {s['lat']}, {s['lng']}\n") """
-        f.write("{" + f"lat: {s['lat']}, lng: {s['lng']}, title: '{s['name']}', fill: 33," + "},\n" )
+# ✅ Gerçek JSON yaz
+with open("sonuc.json", "w", encoding="utf-8") as f:
+    json.dump(sonuc, f, ensure_ascii=False, indent=2)
