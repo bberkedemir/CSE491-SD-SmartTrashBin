@@ -69,12 +69,12 @@ def create_bins_bulk(bins_data: BinBulkCreate, db: Session = Depends(get_db)):
     if result.success_count == 0:
         raise HTTPException(
             status_code=400, 
-            detail="No valid bins were imported. Check the data format and validation errors."
+            detail=f"No valid bins were imported. Errors: {result.errors}"
         )
     
     # Return successfully created bins
-    created_bins = bin_crud.get_all(db, limit=result.success_count * 2)  # Get enough to include new ones
-    return created_bins[-result.success_count:]  # Return only the newly created bins
+    # Return successfully created/updated bins
+    return result.processed_bins
 
 
 @router.post("/upload", response_model=FileUploadResponse, status_code=201)
@@ -158,7 +158,7 @@ async def upload_bins_file(
         # Construct response message
         message_parts = []
         if result.success_count > 0:
-            message_parts.append(f"Successfully imported {result.success_count} bins")
+            message_parts.append(f"Successfully processed {result.success_count} bins")
         if result.skipped_count > 0:
             message_parts.append(f"skipped {result.skipped_count} invalid entries")
         

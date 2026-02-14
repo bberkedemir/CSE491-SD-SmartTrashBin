@@ -49,6 +49,7 @@ class BulkImportResult(BaseModel):
     success_count: int
     skipped_count: int
     errors: List[Dict[str, Any]]
+    processed_bins: List[Dict[str, Any]] = []
 
 
 class FileUploadResponse(BaseModel):
