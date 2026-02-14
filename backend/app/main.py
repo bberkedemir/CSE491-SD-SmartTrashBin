@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
 from app.models import bin
-from app.api import bins
+from app.api import bins, routes
 
 # Create database tables
 bin.Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(bins.router, prefix=f"{settings.API_V1_STR}/bins", tags=["bins"])
+app.include_router(routes.router, prefix=f"{settings.API_V1_STR}/routes", tags=["routes"])
 
 
 @app.get("/")
