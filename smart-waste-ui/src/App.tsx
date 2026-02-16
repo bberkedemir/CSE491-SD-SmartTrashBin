@@ -48,6 +48,13 @@ const App: React.FC = () => {
     popupAnchor: [-3, -76]
   });
 
+  const numberedIcon = (number: any) => L.divIcon({
+    className: "custom-number-icon",
+    html: `<div class="marker-number">${number}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+
   const depotIcon = L.icon({
     iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
     shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
@@ -377,7 +384,7 @@ const App: React.FC = () => {
           return;
         }
 
-        L.marker([stop.lat, stop.lng], { icon: greenIcon })
+        L.marker([stop.lat, stop.lng], { icon: numberedIcon(stop.sequence) })
           .addTo(mapRef.current!)
           .bindPopup(`<b>Stop #${stop.sequence}</b><br>${stop.title}<br>Fill: ${stop.fill_level}%`);
       });
