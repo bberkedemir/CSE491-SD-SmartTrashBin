@@ -107,15 +107,29 @@ class BinCRUD:
                         title=str(bin_data["title"]).strip(),
                         fill=int(bin_data["fill"])
                     )
-                    
-                    db_bin = BinModel(**bin_create.model_dump())
-                    db.add(db_bin)
-                    created_bins.append(db_bin)
+
+                    # Check for existing bin with same location
+                    stmt = select(BinModel).where(
+                        BinModel.lat == float(bin_data["lat"]),
+                        BinModel.lng == float(bin_data["lng"])
+                    )
+                    existing_bin = db.execute(stmt).scalar_one_or_none()
+
+                    if existing_bin:
+                        # Update existing bin
+                        existing_bin.fill = int(bin_data["fill"])
+                        existing_bin.title = str(bin_data["title"]).strip()
+                        created_bins.append(existing_bin)
+                    else:
+                        # Create new bin
+                        db_bin = BinModel(**bin_create.model_dump())
+                        db.add(db_bin)
+                        created_bins.append(db_bin)
                 except Exception as e:
                     errors.append({
                         "index": i + 1,
                         "data": bin_data,
-                        "error": f"Failed to create bin: {str(e)}"
+                        "error": f"Failed to process bin: {str(e)}"
                     })
             else:
                 errors.append({
@@ -143,7 +157,11 @@ class BinCRUD:
         return BulkImportResult(
             success_count=len(created_bins),
             skipped_count=skipped_count,
-            errors=errors
+            errors=errors,
+            processed_bins=[
+                {"id": b.id, "lat": b.lat, "lng": b.lng, "title": b.title, "fill": b.fill, "created_at": b.created_at, "updated_at": b.updated_at} 
+                for b in created_bins
+            ]
         )
 
 

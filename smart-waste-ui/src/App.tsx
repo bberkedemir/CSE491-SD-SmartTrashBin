@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import 'leaflet-polylinedecorator';
+
 import { Box, Button, LinearProgress, Snackbar, Alert } from "@mui/material";
 import trashBin from "./assets/binRed.png";
 import './App.css';
@@ -13,20 +15,62 @@ interface BinPoint {
   fill: number;
 }
 
+interface RouteStop {
+  sequence: number;
+  id: number;
+  title: string;
+  lat: number;
+  lng: number;
+  fill_level: number;
+  type: string;
+}
+
+interface RouteResponse {
+  generated_at: string;
+  total_stops: number;
+  total_distance_km: number;
+  estimated_time_minutes: number;
+  route_sequence: RouteStop[];
+  route_geometry: number[][];
+}
+
+
 const App: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
-  
+
   const greenIcon = L.icon({
     iconUrl: trashBin,
     shadowUrl: trashBin,
-    iconSize:     [40, 40],
-    shadowSize:   [0, 0],
-    iconAnchor:   [20, 40],
+    iconSize: [40, 40],
+    shadowSize: [0, 0],
+    iconAnchor: [20, 40],
     shadowAnchor: [0, 0],
-    popupAnchor:  [-3, -76]
+    popupAnchor: [-3, -76]
   });
 
+  const numberedIcon = (number: any) => L.divIcon({
+    className: "custom-number-icon",
+    html: `<div class="marker-number">${number}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+
+  const depotIcon = L.icon({
+    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+
+
   const [points, setPoints] = useState<BinPoint[]>([]);
+  const [routePolyline, setRoutePolyline] = useState<L.Polyline | null>(null);
+  const [routeDecorator, setRouteDecorator] = useState<any | null>(null);
+  const [routeStops, setRouteStops] = useState<RouteStop[] | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   // API functions
   const fetchBins = async () => {
@@ -72,6 +116,99 @@ const App: React.FC = () => {
     }
   };
 
+  const optimizeRoute = async () => {
+    setIsOptimizing(true);
+    // clear previous route
+    if (routePolyline) {
+      routePolyline.remove();
+      setRoutePolyline(null);
+    }
+    if (routeDecorator) {
+      routeDecorator.remove();
+      setRouteDecorator(null);
+    }
+    // We update markers via state now, so no need to manually remove depotMarker here
+    if (routeStops) {
+      setRouteStops(null);
+    }
+
+    try {
+      const response = await fetch('/api/v1/routes/optimize?threshold=30'); // using 30 for demo purposes
+      if (!response.ok) throw new Error('Failed to optimize route');
+
+      const data: RouteResponse = await response.json();
+
+      // Use geometry if available, otherwise fallback to sequence (straight lines)
+      let latlngs: L.LatLngExpression[] = [];
+
+      if (data.route_geometry && data.route_geometry.length > 0) {
+        // Backend already returns [lat, lng]
+        latlngs = data.route_geometry as L.LatLngExpression[];
+      } else if (data.route_sequence && data.route_sequence.length > 0) {
+        latlngs = data.route_sequence.map((stop: RouteStop) => [stop.lat, stop.lng]);
+      }
+
+      if (latlngs.length > 0) {
+        // Draw polyline
+        if (mapRef.current) {
+          const polyline = L.polyline(latlngs, {
+            color: '#3388ff', // Leaflet default blue
+            weight: 5,
+            opacity: 0.8,
+            lineJoin: 'round'
+          }).addTo(mapRef.current);
+
+          // Add arrows with polyline decorator
+          const decorator = (L as any).polylineDecorator(polyline, {
+            patterns: [
+              {
+                offset: '5%',
+                repeat: '300px',
+                symbol: (L as any).Symbol.arrowHead({
+                  pixelSize: 15,
+                  polygon: false,
+                  pathOptions: { stroke: true, color: '#3388ff', weight: 3 }
+                })
+              }
+            ]
+          }).addTo(mapRef.current);
+          setRouteDecorator(decorator);
+
+          // Fit bounds to show the whole route
+          mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+          setRoutePolyline(polyline);
+
+          // Update markers state to route
+          setRouteStops(data.route_sequence);
+
+          // Show notification
+          setNotification({
+            open: true,
+            message: `Route generated! Distance: ${data.total_distance_km} km`,
+            severity: 'success'
+          });
+        }
+      } else {
+        setNotification({
+          open: true,
+          message: 'No route found (no bins above threshold).',
+          severity: 'info'
+        });
+      }
+    } catch (error) {
+      console.error('Optimization error:', error);
+      setNotification({
+        open: true,
+        message: 'Failed to generate route.',
+        severity: 'error'
+      });
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+
   // Upload functionality
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -108,7 +245,7 @@ const App: React.FC = () => {
       xhr.addEventListener('load', () => {
         if (xhr.status === 201) {
           const response = JSON.parse(xhr.responseText);
-          
+
           // Show success notification
           setNotification({
             open: true,
@@ -126,7 +263,7 @@ const App: React.FC = () => {
             severity: 'error'
           });
         }
-        
+
         setIsUploading(false);
         setUploadProgress(0);
       });
@@ -203,7 +340,7 @@ const App: React.FC = () => {
         };
       }
     });
-    
+
     return marker;
   }
 
@@ -226,7 +363,7 @@ const App: React.FC = () => {
     fetchBins();
   }, []);
 
-  // Update markers when points change
+  // Update markers when points or routeStops change
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -237,25 +374,44 @@ const App: React.FC = () => {
       }
     });
 
-    // Add markers for each bin
-    points.forEach(p => {
-      addMarker(
-        mapRef.current!, 
-        { id: p.id,
-          lat: p.lat,
-          lng: p.lng,
-          title: p.title,
-          fill: p.fill
-        }, greenIcon, (binId, marker) => {
-          deleteBin(binId);
-          marker.removeFrom(mapRef.current!);
-        } 
-      );
-    });
-  }, [points]);
+    if (routeStops && routeStops.length > 0) {
+      // --- ROUTE MODE: Show numbered markers via Popup ---
+      routeStops.forEach(stop => {
+        if (stop.type === 'start' || stop.type === 'end') {
+          L.marker([stop.lat, stop.lng], { icon: depotIcon })
+            .addTo(mapRef.current!)
+            .bindPopup(`<b>Depot (Start/End)</b><br>${stop.title}`);
+          return;
+        }
+
+        L.marker([stop.lat, stop.lng], { icon: numberedIcon(stop.sequence) })
+          .addTo(mapRef.current!)
+          .bindPopup(`<b>Stop #${stop.sequence}</b><br>${stop.title}<br>Fill: ${stop.fill_level}%`);
+      });
+
+    } else {
+      // --- DEFAULT MODE: Show all bins ---
+      points.forEach(p => {
+        addMarker(
+          mapRef.current!,
+          {
+            id: p.id,
+            lat: p.lat,
+            lng: p.lng,
+            title: p.title,
+            fill: p.fill
+          }, greenIcon, (binId, marker) => {
+            deleteBin(binId);
+            marker.removeFrom(mapRef.current!);
+          }
+        );
+      });
+    }
+
+  }, [points, routeStops]);
 
   const [isAddMode, setIsAddMode] = useState(false);
-    
+
   // new marker
   useEffect(() => {
     if (!mapRef.current) return;
@@ -289,7 +445,7 @@ const App: React.FC = () => {
           </div>
         `)
         .openOn(mapRef.current!);
-      
+
       setTimeout(() => {
         const addButton = document.getElementById("addMarkerBtn");
         if (!addButton) return;
@@ -298,11 +454,11 @@ const App: React.FC = () => {
           const input = document.getElementById("addTitle") as HTMLInputElement | null;
           const markerTitle = input?.value || "Untitled Marker";
           const newMarkerData = {
-              lat: e.latlng.lat,
-              lng: e.latlng.lng,
-              title: markerTitle,
-              fill: Math.floor(Math.random() * 101)
-            };
+            lat: e.latlng.lat,
+            lng: e.latlng.lng,
+            title: markerTitle,
+            fill: Math.floor(Math.random() * 101)
+          };
 
           try {
             await createBin(newMarkerData);
@@ -323,7 +479,7 @@ const App: React.FC = () => {
       popup.off("add");
     };
   }, [isAddMode, createBin]);
-    
+
   return (
     <>
       <Box sx={{ height: "100vh", width: "100vw" }}>
@@ -341,7 +497,7 @@ const App: React.FC = () => {
       />
 
       {/* Upload File Button */}
-      <Button 
+      <Button
         variant="contained"
         component="label"
         htmlFor="file-upload-input"
@@ -350,8 +506,8 @@ const App: React.FC = () => {
           position: 'absolute',
           bottom: 70,
           right: 20,
-          width: "140px", 
-          height: "44px", 
+          width: "140px",
+          height: "44px",
           zIndex: 1000,
           bgcolor: "#007bff",
           color: "#ffffff",
@@ -374,7 +530,7 @@ const App: React.FC = () => {
             color: "#ffffff",
             boxShadow: "none",
           }
-        }} 
+        }}
       >
         {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Upload File"}
       </Button>
@@ -390,8 +546,8 @@ const App: React.FC = () => {
             zIndex: 999,
           }}
         >
-          <LinearProgress 
-            variant="determinate" 
+          <LinearProgress
+            variant="determinate"
             value={uploadProgress}
             sx={{
               height: 6,
@@ -407,13 +563,13 @@ const App: React.FC = () => {
       )}
 
       {/* Add Marker Button */}
-      <Button 
+      <Button
         sx={{
           position: 'absolute',
           bottom: 20,
           right: 20,
-          width: "140px", 
-          height: "44px", 
+          width: "140px",
+          height: "44px",
           zIndex: 1000,
           bgcolor: isAddMode ? "#ff4757" : "#23a200",
           color: "#ffffff",
@@ -421,25 +577,63 @@ const App: React.FC = () => {
           fontSize: "14px",
           borderRadius: "8px",
           textTransform: "none",
-          boxShadow: isAddMode 
-            ? "0 4px 12px rgba(255, 71, 87, 0.4)" 
+          boxShadow: isAddMode
+            ? "0 4px 12px rgba(255, 71, 87, 0.4)"
             : "0 4px 12px rgba(35, 162, 0, 0.4)",
           transition: "all 0.3s ease",
           '&:hover': {
             bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
             transform: "translateY(-2px)",
-            boxShadow: isAddMode 
-              ? "0 6px 16px rgba(255, 71, 87, 0.5)" 
+            boxShadow: isAddMode
+              ? "0 6px 16px rgba(255, 71, 87, 0.5)"
               : "0 6px 16px rgba(35, 162, 0, 0.5)",
           },
           '&:active': {
             transform: "translateY(0px)",
           }
-        }} 
+        }}
         onClick={() => setIsAddMode(!isAddMode)}
       >
         {isAddMode ? "✕ Cancel" : "+ Add Marker"}
       </Button>
+
+      {/* Optimize Route Button */}
+      <Button
+        sx={{
+          position: 'absolute',
+          bottom: 20,
+          right: 170, // Positioned to the left of Add Marker
+          width: "160px",
+          height: "44px",
+          zIndex: 1000,
+          bgcolor: "#9b59b6",
+          color: "#ffffff",
+          fontWeight: 600,
+          fontSize: "14px",
+          borderRadius: "8px",
+          textTransform: "none",
+          boxShadow: "0 4px 12px rgba(155, 89, 182, 0.4)",
+          transition: "all 0.3s ease",
+          '&:hover': {
+            bgcolor: "#8e44ad",
+            transform: "translateY(-2px)",
+            boxShadow: "0 6px 16px rgba(155, 89, 182, 0.5)",
+          },
+          '&:active': {
+            transform: "translateY(0px)",
+          },
+          '&:disabled': {
+            bgcolor: "#b3b3b3",
+            color: "#f0f0f0",
+            boxShadow: "none"
+          }
+        }}
+        onClick={optimizeRoute}
+        disabled={isOptimizing}
+      >
+        {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}
+      </Button>
+
 
       {/* Notification Snackbar */}
       <Snackbar
@@ -451,7 +645,7 @@ const App: React.FC = () => {
           zIndex: 2000,
         }}
       >
-        <Alert 
+        <Alert
           onClose={() => setNotification(prev => ({ ...prev, open: false }))}
           severity={notification.severity}
           sx={{

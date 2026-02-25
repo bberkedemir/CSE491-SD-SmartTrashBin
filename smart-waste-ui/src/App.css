@@ -1,131 +1,48 @@
-html, body, #root {
-  height: 100%;
-  margin: 0;
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
 }
 
-.marker-popup {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  min-width: 200px;
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
 }
 
-.marker-popup-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.marker-popup-details {
-  font-size: 13px;
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-
-.marker-popup-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.marker-popup-label {
-  color: #888;
-}
-
-.marker-popup-value {
-  font-weight: 500;
-  color: #333;
-}
-
-.marker-delete-btn {
-  width: 100%;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
-  color: white;
+.custom-number-icon {
+  background: none;
   border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(255, 71, 87, 0.2);
 }
 
-.marker-delete-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 71, 87, 0.3);
-}
-
-
-.popup-container {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-width: 240px;
-  padding: 4px;
-}
-
-.popup-coords {
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.popup-field {
-  margin-bottom: 12px;
-}
-
-.popup-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 6px;
-}
-
-.popup-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 14px;
-  background-color: #ffffff;
-  color: #000000;
-  box-sizing: border-box;
-  transition: border-color 0.2s ease;
-}
-
-.popup-input:focus {
-  border-color: #4CAF50;
-  outline: none;
-}
-
-.popup-button {
-  width: 100%;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+.marker-number {
+  background-color: green;
   color: white;
-  border: none;
-  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 30px;
+  font-weight: bold;
   font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
-  transition: all 0.2s ease;
+  border: 2px solid white;
 }
 
-.popup-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
 }
 
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
 
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
