@@ -1,0 +1,238 @@
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    z-index: 1100;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4);
+    transition: width 0.3s ease;
+}
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
+}
+
+.sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
+    position: relative;
+}
+
+/* Base Sidebar Button */
+.sidebar-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sidebar-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-btn:active {
+    transform: translateY(0);
+}
+
+.sidebar-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Coloring Variants */
+.sidebar-btn--green {
+    background: #23a200;
+}
+
+.sidebar-btn--blue {
+    background: #007bff;
+}
+
+.sidebar-btn--purple {
+    background: #9b59b6;
+}
+
+.sidebar-btn--active-red {
+    background: #e74c3c;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+.sidebar-btn--ghost {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Tooltip */
+.sidebar-btn::after,
+.sidebar-stop::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background: #333;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 1200;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-btn:hover::after,
+.sidebar-stop:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Spinner */
+.sidebar-btn-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Metrics Display Flyout */
+.sidebar-metrics {
+    position: absolute;
+    left: calc(100% + 16px);
+    bottom: 0;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    width: 200px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    animation: slideRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: auto;
+}
+
+@keyframes slideRight {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.sidebar-metrics-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-metrics-item {
+    text-align: center;
+}
+
+.sidebar-metrics-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.sidebar-metrics-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+}
+
+/* Stops List */
+.sidebar-stops {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.sidebar-stops::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-stops::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.sidebar-stops::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.sidebar-stop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    position: relative;
+    cursor: default;
+}
+
+.sidebar-stop-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.sidebar-stop-fill {
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+}
