@@ -66,4 +66,33 @@ export const binApi = {
         if (!response.ok) throw new Error('Failed to optimize route');
         return response.json();
     },
+
+    importBins(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const body = JSON.parse(xhr.responseText);
+                        resolve(body.message || 'Import successful');
+                    } catch {
+                        resolve('Import successful');
+                    }
+                } else {
+                    reject(new Error('Server returned an error'));
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                reject(new Error('Network error during upload'));
+            });
+
+            xhr.open('POST', `${API_BASE}/bins/upload`);
+            xhr.send(formData);
+        });
+    },
 };
