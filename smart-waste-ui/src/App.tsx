@@ -7,6 +7,7 @@ import './App.css';
 import MapContainer from './components/Map/MapContainer';
 import FileUpload from './components/Upload/FileUpload';
 import NotificationSnackbar from './components/Notification/NotificationSnackbar';
+import RouteMetricsPanel from './components/Map/RouteMetricsPanel';
 import { useBins } from './hooks/useBins';
 import { useRouteOptimization } from './hooks/useRouteOptimization';
 import type { AppNotification } from './types/bin';
@@ -19,6 +20,11 @@ const App: React.FC = () => {
     message: '',
     severity: 'info',
   });
+  const [showMetrics, setShowMetrics] = useState(false);
+
+  const handleExitAddMode = useCallback(() => {
+    setIsAddMode(false);
+  }, []);
 
   // Shared map ref — filled by MapContainer, used by useRouteOptimization
   const mapRef = useRef<L.Map | null>(null);
@@ -27,10 +33,26 @@ const App: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, isOptimizing, optimizeRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, clearRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
+
+  // Auto-show when route is generated
+  useEffect(() => {
+    if (routeMetrics) {
+      setShowMetrics(true);
+    }
+  }, [routeMetrics]);
+
+  const handleRouteButtonClick = () => {
+    if (isRouteActive) {
+      clearRoute();           // route exists → clear it
+      setShowMetrics(false);
+    } else {
+      optimizeRoute();        // no route → generate one
+    }
+  };
 
   // Fetch bins on mount
   useEffect(() => {
@@ -47,6 +69,7 @@ const App: React.FC = () => {
           onCreateBin={createBin}
           onDeleteBin={deleteBin}
           onMapReady={handleMapReady}
+          onExitAddMode={handleExitAddMode}
         />
       </Box>
 
@@ -64,18 +87,22 @@ const App: React.FC = () => {
           width: '160px',
           height: '44px',
           zIndex: 1000,
-          bgcolor: '#9b59b6',
+          bgcolor: isRouteActive ? '#e74c3c' : '#9b59b6',
           color: '#ffffff',
           fontWeight: 600,
           fontSize: '14px',
           borderRadius: '8px',
           textTransform: 'none',
-          boxShadow: '0 4px 12px rgba(155, 89, 182, 0.4)',
+          boxShadow: isRouteActive
+            ? '0 4px 12px rgba(231, 76, 60, 0.4)'
+            : '0 4px 12px rgba(155, 89, 182, 0.4)',
           transition: 'all 0.3s ease',
           '&:hover': {
-            bgcolor: '#8e44ad',
+            bgcolor: isRouteActive ? '#c0392b' : '#8e44ad',
             transform: 'translateY(-2px)',
-            boxShadow: '0 6px 16px rgba(155, 89, 182, 0.5)',
+            boxShadow: isRouteActive
+              ? '0 6px 16px rgba(231, 76, 60, 0.5)'
+              : '0 6px 16px rgba(155, 89, 182, 0.5)',
           },
           '&:active': { transform: 'translateY(0px)' },
           '&:disabled': {
@@ -84,10 +111,15 @@ const App: React.FC = () => {
             boxShadow: 'none',
           },
         }}
-        onClick={() => optimizeRoute()}
+        onClick={handleRouteButtonClick}
         disabled={isOptimizing}
       >
-        {isOptimizing ? 'Optimizing...' : '⚡ Optimize Route'}
+        {isOptimizing
+          ? 'Optimizing...'
+          : isRouteActive
+            ? '✕ Clear Route'
+            : '⚡ Optimize Route'
+        }
       </Button>
 
       {/* Add Marker Toggle */}
@@ -127,6 +159,13 @@ const App: React.FC = () => {
         notification={notification}
         onClose={() => setNotification(prev => ({ ...prev, open: false }))}
       />
+
+      {showMetrics && routeMetrics && (
+        <RouteMetricsPanel
+          metrics={routeMetrics}
+          onClose={() => setShowMetrics(false)}
+        />
+      )}
     </>
   );
 };

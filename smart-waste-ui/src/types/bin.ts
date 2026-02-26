@@ -18,6 +18,14 @@ export interface RouteStop {
     type: string;
 }
 
+export interface RouteMetrics {
+    generatedAt: string;
+    totalStops: number;
+    totalDistanceKm: number;
+    estimatedTimeMinutes: number;
+    stops: RouteStop[];
+}
+
 export interface RouteResponse {
     generated_at: string;
     total_stops: number;

@@ -143,3 +143,24 @@ body,
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
 }
+
+/* === Add Mode Map Styling === */
+.add-mode-active {
+  border: 3px solid #23a200;
+  box-sizing: border-box;
+  transition: border 0.3s ease;
+  cursor: crosshair !important;
+}
+
+/* === Animations === */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

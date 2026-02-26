@@ -8,6 +8,8 @@ import {
     createRouteStopPopupHtml,
 } from './popupTemplates';
 
+const ADD_MODE_CURSOR = 'crosshair';
+
 const MAP_CENTER: L.LatLngExpression = [36.89488259077369, 30.649857090761955];
 const MAP_ZOOM = 13;
 
@@ -16,10 +18,29 @@ export function useMapMarkers(
     routeStops: RouteStop[] | null,
     isAddMode: boolean,
     onCreateBin: (data: NewBinData) => Promise<BinPoint>,
-    onDeleteBin: (id: number) => Promise<void>
+    onDeleteBin: (id: number) => Promise<void>,
+    onExitAddMode: () => void
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
+
+    useEffect(() => {
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) return;
+
+        if (isAddMode) {
+            mapContainer.style.cursor = ADD_MODE_CURSOR;
+            mapContainer.classList.add('add-mode-active');
+        } else {
+            mapContainer.style.cursor = '';
+            mapContainer.classList.remove('add-mode-active');
+        }
+
+        return () => {
+            mapContainer.style.cursor = '';
+            mapContainer.classList.remove('add-mode-active');
+        };
+    }, [isAddMode]);
 
     // Initialize map once
     useEffect(() => {
@@ -113,6 +134,7 @@ export function useMapMarkers(
                             fill: Math.floor(Math.random() * 101),
                         });
                         popup.close();
+                        onExitAddMode();
                     } catch (error) {
                         console.error('Failed to create bin:', error);
                     }
@@ -124,7 +146,7 @@ export function useMapMarkers(
         return () => {
             mapRef.current?.off('click', onMapClick);
         };
-    }, [isAddMode, onCreateBin]);
+    }, [isAddMode, onCreateBin, onExitAddMode]);
 
     return mapRef;
 }
