@@ -30,10 +30,12 @@ const RoutingPage: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, isOptimizing, optimizeRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
+
+  const [showMetrics, setShowMetrics] = useState(false);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -77,6 +79,12 @@ const RoutingPage: React.FC = () => {
   useEffect(() => {
     fetchBins();
   }, [fetchBins]);
+
+  const getFillColor = (fillLevel: number) => {
+    if (fillLevel >= 80) return '#ff4757';
+    if (fillLevel >= 50) return '#ffa502';
+    return '#2ed573';
+  };
 
   return (
     <>
@@ -244,6 +252,124 @@ const RoutingPage: React.FC = () => {
         notification={notification}
         onClose={() => setNotification(prev => ({ ...prev, open: false }))}
       />
+
+      {/* Metrics Panel (Visible only when active route) */}
+      {isRouteActive && routeMetrics && (
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 20,
+            left: 80,
+            zIndex: 1000,
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={() => setShowMetrics(!showMetrics)}
+            sx={{
+              width: "90px",
+              height: "44px",
+              zIndex: 1000,
+              bgcolor: showMetrics ? "#ff4757" : "#23a200",
+              color: "#ffffff",
+              fontWeight: 600,
+              fontSize: "14px",
+              borderRadius: "8px",
+              textTransform: "none",
+              boxShadow: showMetrics
+                ? "0 4px 12px rgba(255, 71, 87, 0.4)"
+                : "0 4px 12px rgba(35, 162, 0, 0.4)",
+              transition: "all 0.3s ease",
+              '&:hover': {
+                bgcolor: showMetrics ? "#ff3838" : "#1f8f00",
+                transform: "translateY(-2px)",
+                boxShadow: showMetrics
+                  ? "0 6px 16px rgba(255, 71, 87, 0.5)"
+                  : "0 6px 16px rgba(35, 162, 0, 0.5)",
+              },
+              '&:active': {
+                transform: "translateY(0px)",
+              }
+            }}
+          >
+            {showMetrics ? "Hide" : "Show"}
+          </Button>
+
+          {showMetrics && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: '54px',
+                left: 0,
+                width: '280px',
+                bgcolor: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                p: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 2 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Box sx={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
+                    {routeMetrics.totalDistanceKm.toFixed(1)}
+                  </Box>
+                  <Box sx={{ fontSize: '12px', color: '#666' }}>km</Box>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Box sx={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
+                    {Math.round(routeMetrics.estimatedTimeMinutes)}
+                  </Box>
+                  <Box sx={{ fontSize: '12px', color: '#666' }}>min</Box>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Box sx={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
+                    {routeMetrics.totalStops}
+                  </Box>
+                  <Box sx={{ fontSize: '12px', color: '#666' }}>stops</Box>
+                </Box>
+              </Box>
+
+              <Box sx={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {routeMetrics.stops.map((stop, i) => (
+                  <Box
+                    key={stop.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      py: 0.5,
+                      px: 1,
+                      borderRadius: '4px',
+                      '&:hover': { bgcolor: '#f5f5f5' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          bgcolor: getFillColor(stop.fill_level),
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {i + 1}
+                      </Box>
+                      <Box sx={{ fontSize: '13px', color: '#333' }}>{stop.title}</Box>
+                    </Box>
+                    <Box sx={{ fontSize: '13px', color: '#666' }}>{stop.fill_level}%</Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
     </>
   );
 };
