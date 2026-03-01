@@ -85,7 +85,7 @@ export function useMapMarkers(
     useEffect(() => {
         if (!mapRef.current) return;
 
-        // Remove old markers
+        // Remove old basic markers (do NOT remove truckMarker)
         markersRef.current.forEach(m => m.remove());
         markersRef.current = [];
 
