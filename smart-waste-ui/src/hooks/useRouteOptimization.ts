@@ -30,12 +30,12 @@ export function useRouteOptimization(
         setRouteMetrics(null);
     }, []);
 
-    const optimizeRoute = useCallback(async (threshold: number = 30) => {
+    const optimizeRoute = useCallback(async (threshold: number = 30, startLat: number, startLng: number) => {
         setIsOptimizing(true);
         clearRoute();
 
         try {
-            const data: RouteResponse = await binApi.optimizeRoute(threshold);
+            const data: RouteResponse = await binApi.optimizeRoute(threshold, startLat, startLng);
 
             let latlngs: L.LatLngExpression[] = [];
 
