@@ -12,7 +12,7 @@ export const binIcon = L.icon({
 });
 
 export const truckIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/2830/2830305.png', // Realistic garbage truck
+    iconUrl: 'https://cdn-icons-png.flaticon.com/128/3256/3256319.png', // Realistic garbage truck
     iconSize: [48, 48],
     iconAnchor: [24, 48],
     popupAnchor: [0, -48]
