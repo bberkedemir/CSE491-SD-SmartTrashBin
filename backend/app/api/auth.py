@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth_dependency import get_current_user
 from app.models.user import User
+from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
 from app.crud import user as user_crud
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+security = HTTPBearer()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -67,3 +70,21 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/logout")
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+
+    # Check if already blacklisted
+    existing = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+    if not existing:
+        blacklisted_token = TokenBlacklist(token=token)
+        db.add(blacklisted_token)
+        db.commit()
+
+    return {"message": "Successfully logged out"}
