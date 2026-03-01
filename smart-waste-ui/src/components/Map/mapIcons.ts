@@ -11,6 +11,13 @@ export const binIcon = L.icon({
     popupAnchor: [-3, -76],
 });
 
+export const truckIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3204/3204855.png', // Fallback URL for garbage truck
+    iconSize: [48, 48],
+    iconAnchor: [24, 48],
+    popupAnchor: [0, -48]
+});
+
 export const depotIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',

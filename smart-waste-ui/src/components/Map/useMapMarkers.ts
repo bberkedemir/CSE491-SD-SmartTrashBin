@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { BinPoint, NewBinData, RouteStop } from '../../types/bin';
-import { binIcon, depotIcon, numberedIcon } from './mapIcons';
 import {
     createMarkerPopupHtml,
     createAddMarkerPopupHtml,
     createRouteStopPopupHtml,
 } from './popupTemplates';
+import * as mapIcons from './mapIcons';
 
 const ADD_MODE_CURSOR = 'crosshair';
 
@@ -17,12 +17,15 @@ export function useMapMarkers(
     bins: BinPoint[],
     routeStops: RouteStop[] | null,
     isAddMode: boolean,
+    truckPosition: [number, number],
+    onTruckMove: (lat: number, lng: number) => void,
     onCreateBin: (data: NewBinData) => Promise<BinPoint>,
     onDeleteBin: (id: number) => Promise<void>,
     onExitAddMode: () => void
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
+    const truckMarkerRef = useRef<L.Marker | null>(null);
 
     useEffect(() => {
         const mapContainer = document.getElementById('map');
@@ -56,6 +59,28 @@ export function useMapMarkers(
         }).addTo(mapRef.current);
     }, []);
 
+    // Manage Truck Marker
+    useEffect(() => {
+        if (!mapRef.current) return;
+
+        if (!truckMarkerRef.current) {
+            truckMarkerRef.current = L.marker(truckPosition, {
+                icon: mapIcons.truckIcon,
+                draggable: true
+            })
+                .addTo(mapRef.current)
+                .bindPopup("<b>Garbage Truck</b><br>Drag me to set starting position.");
+
+            truckMarkerRef.current.on('dragend', (e) => {
+                const marker = e.target as L.Marker;
+                const position = marker.getLatLng();
+                onTruckMove(position.lat, position.lng);
+            });
+        } else {
+            truckMarkerRef.current.setLatLng(truckPosition);
+        }
+    }, [truckPosition, onTruckMove]);
+
     // Sync markers with bins or route stops
     useEffect(() => {
         if (!mapRef.current) return;
@@ -69,8 +94,8 @@ export function useMapMarkers(
             routeStops.forEach(stop => {
                 const icon =
                     stop.type === 'start' || stop.type === 'end'
-                        ? depotIcon
-                        : numberedIcon(stop.sequence);
+                        ? mapIcons.depotIcon
+                        : mapIcons.numberedIcon(stop.sequence);
 
                 const marker = L.marker([stop.lat, stop.lng], { icon })
                     .addTo(mapRef.current!)
@@ -81,7 +106,7 @@ export function useMapMarkers(
         } else {
             // --- DEFAULT MODE: all bins with delete ---
             bins.forEach(bin => {
-                const marker = L.marker([bin.lat, bin.lng], { icon: binIcon })
+                const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.binIcon })
                     .addTo(mapRef.current!)
                     .bindPopup(createMarkerPopupHtml(bin));
 

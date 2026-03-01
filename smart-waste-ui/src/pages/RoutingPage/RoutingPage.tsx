@@ -10,6 +10,8 @@ import type { AppNotification } from '../../types/bin';
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
+  // Default truck position set to roughly Campus Gate
+  const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
   const [notification, setNotification] = useState<AppNotification>({
     open: false,
     message: '',
@@ -93,6 +95,8 @@ const RoutingPage: React.FC = () => {
           bins={bins}
           routeStops={routeStops}
           isAddMode={isAddMode}
+          truckPosition={truckPosition}
+          onTruckMove={(lat, lng) => setTruckPosition([lat, lng])}
           onCreateBin={createBin}
           onDeleteBin={deleteBin}
           onMapReady={handleMapReady}
@@ -242,7 +246,7 @@ const RoutingPage: React.FC = () => {
             boxShadow: "none"
           }
         }}
-        onClick={() => optimizeRoute()}
+        onClick={() => optimizeRoute(30, truckPosition[0], truckPosition[1])}
         disabled={isOptimizing}
       >
         {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}

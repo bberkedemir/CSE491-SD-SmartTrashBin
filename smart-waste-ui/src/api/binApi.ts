@@ -61,8 +61,8 @@ export const binApi = {
         });
     },
 
-    async optimizeRoute(threshold: number = 30): Promise<RouteResponse> {
-        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}`);
+    async optimizeRoute(threshold: number = 30, startLat: number, startLng: number): Promise<RouteResponse> {
+        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}&start_lat=${startLat}&start_lng=${startLng}`);
         if (!response.ok) throw new Error('Failed to optimize route');
         return response.json();
     },

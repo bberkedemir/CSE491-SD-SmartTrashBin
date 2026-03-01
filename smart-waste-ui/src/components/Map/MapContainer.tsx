@@ -8,6 +8,8 @@ interface MapContainerProps {
     bins: BinPoint[];
     routeStops: RouteStop[] | null;
     isAddMode: boolean;
+    truckPosition: [number, number];
+    onTruckMove: (lat: number, lng: number) => void;
     onCreateBin: (data: NewBinData) => Promise<BinPoint>;
     onDeleteBin: (id: number) => Promise<void>;
     onMapReady: (map: L.Map) => void;
@@ -18,12 +20,14 @@ const MapContainer: React.FC<MapContainerProps> = ({
     bins,
     routeStops,
     isAddMode,
+    truckPosition,
+    onTruckMove,
     onCreateBin,
     onDeleteBin,
     onMapReady,
     onExitAddMode,
 }) => {
-    const mapRef = useMapMarkers(bins, routeStops, isAddMode, onCreateBin, onDeleteBin, onExitAddMode);
+    const mapRef = useMapMarkers(bins, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onExitAddMode);
 
     // Tell parent when map is ready so route optimization can use it
     useEffect(() => {
