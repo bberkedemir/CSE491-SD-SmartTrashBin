@@ -92,8 +92,10 @@ export function useMapMarkers(
         if (routeStops && routeStops.length > 0) {
             // --- ROUTE MODE: numbered markers + depot ---
             routeStops.forEach(stop => {
+                if (stop.type === 'start') return;
+
                 const icon =
-                    stop.type === 'start' || stop.type === 'end'
+                    stop.type === 'end'
                         ? mapIcons.depotIcon
                         : mapIcons.numberedIcon(stop.sequence);
 
