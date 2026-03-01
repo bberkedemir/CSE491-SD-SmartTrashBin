@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.models import user
 from app.models import bin
+from app.models import token_blacklist
 from app.api import bins, routes, auth
 
 # Create database tables
