@@ -1,5 +1,8 @@
 import L from 'leaflet';
 import trashBin from '../../assets/binRed.png';
+import truckImg from '../../assets/truck.png';
+import depotImg from '../../assets/marker-icon-2x-red.png';
+import depotShadow from '../../assets/marker-shadow.png';
 
 export const binIcon = L.icon({
     iconUrl: trashBin,
@@ -12,15 +15,15 @@ export const binIcon = L.icon({
 });
 
 export const truckIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/128/3256/3256319.png', // Realistic garbage truck
+    iconUrl: truckImg, // Realistic garbage truck
     iconSize: [48, 48],
     iconAnchor: [24, 48],
     popupAnchor: [0, -48]
 });
 
 export const depotIcon = L.icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconUrl: depotImg,
+    shadowUrl: depotShadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
