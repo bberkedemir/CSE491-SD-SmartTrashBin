@@ -4,6 +4,7 @@ import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
 import { useBins } from '../../hooks/useBins';
 import { useRouteOptimization } from '../../hooks/useRouteOptimization';
+import { calculateDistanceMeters } from '../../utils/geoUtils';
 import { binApi } from '../../api/binApi';
 import type { AppNotification } from '../../types/bin';
 
@@ -12,6 +13,7 @@ const RoutingPage: React.FC = () => {
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
+  const [lastOptimizedPosition, setLastOptimizedPosition] = useState<[number, number] | null>(null);
   const [notification, setNotification] = useState<AppNotification>({
     open: false,
     message: '',
@@ -81,6 +83,25 @@ const RoutingPage: React.FC = () => {
   useEffect(() => {
     fetchBins();
   }, [fetchBins]);
+
+  // Effect: Recalculate route if truck moves more than 50 meters
+  useEffect(() => {
+    if (!isRouteActive || !lastOptimizedPosition || isOptimizing) return;
+
+    const [lastLat, lastLng] = lastOptimizedPosition;
+    const [currLat, currLng] = truckPosition;
+
+    const distance = calculateDistanceMeters(lastLat, lastLng, currLat, currLng);
+
+    // If moved more than 50 meters, recalculate!
+    if (distance > 50) {
+      optimizeRoute(30, currLat, currLng).then((success) => {
+        if (success) {
+          setLastOptimizedPosition([currLat, currLng]);
+        }
+      });
+    }
+  }, [truckPosition, isRouteActive, lastOptimizedPosition, isOptimizing, optimizeRoute]);
 
   const getFillColor = (fillLevel: number) => {
     if (fillLevel >= 80) return '#ff4757';
@@ -246,7 +267,12 @@ const RoutingPage: React.FC = () => {
             boxShadow: "none"
           }
         }}
-        onClick={() => optimizeRoute(30, truckPosition[0], truckPosition[1])}
+        onClick={async () => {
+          const success = await optimizeRoute(30, truckPosition[0], truckPosition[1]);
+          if (success) {
+            setLastOptimizedPosition(truckPosition);
+          }
+        }}
         disabled={isOptimizing}
       >
         {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}

@@ -30,7 +30,7 @@ export function useRouteOptimization(
         setRouteMetrics(null);
     }, []);
 
-    const optimizeRoute = useCallback(async (threshold: number = 30, startLat: number, startLng: number) => {
+    const optimizeRoute = useCallback(async (threshold: number = 30, startLat: number, startLng: number): Promise<boolean> => {
         setIsOptimizing(true);
         clearRoute();
 
@@ -89,12 +89,14 @@ export function useRouteOptimization(
                     message: `Route generated! Distance: ${data.total_distance_km} km`,
                     severity: 'success',
                 });
+                return true;
             } else {
                 onNotification({
                     open: true,
                     message: 'No route found (no bins above threshold).',
                     severity: 'info',
                 });
+                return false;
             }
         } catch (error) {
             console.error('Optimization error:', error);
@@ -103,6 +105,7 @@ export function useRouteOptimization(
                 message: 'Failed to generate route.',
                 severity: 'error',
             });
+            return false;
         } finally {
             setIsOptimizing(false);
         }
