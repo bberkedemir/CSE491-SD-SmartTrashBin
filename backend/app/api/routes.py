@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.route_optimizer import RouteOptimizerService
 from app.schemas.route import RouteResponse
+from app.services.route_optimizer_2nd import RouteOptimizerService2nd
+
 
 router = APIRouter()
 
@@ -16,6 +18,17 @@ def get_optimized_route(
     """
     try:
         route = RouteOptimizerService.optimize_route(db, threshold)
+        return route
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/optimize-2nd", response_model=RouteResponse)
+def get_optimized_route_2nd(
+    threshold: int = Query(75, ge=0, le=100, description="Fill level threshold percentage"),
+    db: Session = Depends(get_db)
+):
+    try:
+        route = RouteOptimizerService2nd.optimize_route(db, threshold)
         return route
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
