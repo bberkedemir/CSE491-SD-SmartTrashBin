@@ -5,9 +5,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.bin import Bin
 from app.schemas.route import RouteResponse, RouteStop
-from app.services.route_optimizer import RouteOptimizerService
+from app.services.greedy_travelling_salesman import GreedyTravellingSalesmanService
 
-class RouteOptimizerService2nd(RouteOptimizerService):
+class EdgeUntanglingService(GreedyTravellingSalesmanService):
     
     @staticmethod
     def two_opt(route_matrix: List[List[float]], route_indices: List[int]) -> Tuple[List[int], float]:
@@ -57,20 +57,20 @@ class RouteOptimizerService2nd(RouteOptimizerService):
                 route_geometry=[]
             )
 
-        from app.services.route_optimizer import ENTRY_POINT
+        from app.services.greedy_travelling_salesman import ENTRY_POINT
         all_locations = [ENTRY_POINT] + bins_data
         
         try:
-            distance_matrix = RouteOptimizerService.get_osrm_matrix(all_locations)
+            distance_matrix = GreedyTravellingSalesmanService.get_osrm_matrix(all_locations)
         except Exception as e:
             raise Exception(f"Failed to calculate route: {str(e)}")
 
-        nn_route_indices, _ = RouteOptimizerService.nearest_neighbor_tsp(distance_matrix, start_index=0)
+        nn_route_indices, _ = GreedyTravellingSalesmanService.nearest_neighbor_tsp(distance_matrix, start_index=0)
         
-        best_route_indices, total_distance_meters = RouteOptimizerService2nd.two_opt(distance_matrix, nn_route_indices)
+        best_route_indices, total_distance_meters = EdgeUntanglingService.two_opt(distance_matrix, nn_route_indices)
         
         ordered_locations = [all_locations[i] for i in best_route_indices]
-        route_geometry = RouteOptimizerService.get_osrm_route(ordered_locations)
+        route_geometry = GreedyTravellingSalesmanService.get_osrm_route(ordered_locations)
         
         route_sequence = []
         for i, location_idx in enumerate(best_route_indices):

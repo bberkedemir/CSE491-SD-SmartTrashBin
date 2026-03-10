@@ -11,7 +11,7 @@ from app.schemas.route import RouteResponse, RouteStop
 ENTRY_POINT = {"id": -1, "title": "Garbage Truck Depot", "lat": 36.892539, "lng":  30.663895, "fill": 0}
 OSRM_BASE_URL = "http://router.project-osrm.org"
 
-class RouteOptimizerService:
+class GreedyTravellingSalesmanService:
     @staticmethod
     def get_osrm_matrix(locations: List[Dict]) -> List[List[float]]:
         """
@@ -144,12 +144,12 @@ class RouteOptimizerService:
         
         # 3. Get Distance Matrix from OSRM
         try:
-            distance_matrix = RouteOptimizerService.get_osrm_matrix(all_locations)
+            distance_matrix = GreedyTravellingSalesmanService.get_osrm_matrix(all_locations)
         except Exception as e:
             raise Exception(f"Failed to calculate route: {str(e)}")
 
         # 4. Run TSP Algorithm
-        route_indices, total_distance_meters = RouteOptimizerService.nearest_neighbor_tsp(
+        route_indices, total_distance_meters = GreedyTravellingSalesmanService.nearest_neighbor_tsp(
             distance_matrix, start_index=0
         )
         
@@ -157,7 +157,7 @@ class RouteOptimizerService:
         ordered_locations = [all_locations[i] for i in route_indices]
         
         # 6. Fetch Full Route Geometry
-        route_geometry = RouteOptimizerService.get_osrm_route(ordered_locations)
+        route_geometry = GreedyTravellingSalesmanService.get_osrm_route(ordered_locations)
         
         # 7. Format Response
         route_sequence = []
