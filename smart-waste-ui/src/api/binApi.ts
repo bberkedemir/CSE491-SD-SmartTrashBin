@@ -2,27 +2,57 @@ import type { BinPoint, NewBinData, RouteResponse } from '../types/bin';
 
 const API_BASE = '/api/v1';
 
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
+
 export const binApi = {
     async fetchAll(): Promise<BinPoint[]> {
-        const response = await fetch(`${API_BASE}/bins`);
-        if (!response.ok) throw new Error('Failed to fetch bins');
+        const headers = getAuthHeaders();
+        console.log("DEBUG: Fetching bins with headers:", { 
+            ...headers, 
+            Authorization: headers.Authorization ? "Bearer [HIDDEN]" : "MISSING" 
+        });
+        
+        const response = await fetch(`${API_BASE}/bins/`, {
+            headers: headers
+        });
+        
+        console.log("DEBUG: Fetch bins response status:", response.status);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("DEBUG: Fetch bins error body:", errorText);
+            throw new Error(`Failed to fetch bins: ${response.status} ${errorText}`);
+        }
         const data = await response.json();
         return data.bins;
     },
 
     async create(binData: NewBinData): Promise<BinPoint> {
-        const response = await fetch(`${API_BASE}/bins`, {
+        console.log("DEBUG: Creating bin with data:", binData);
+        const response = await fetch(`${API_BASE}/bins/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(binData),
         });
-        if (!response.ok) throw new Error('Failed to create bin');
+        
+        console.log("DEBUG: Create bin response status:", response.status);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("DEBUG: Create bin error body:", errorText);
+            throw new Error(`Failed to create bin: ${response.status} ${errorText}`);
+        }
         return response.json();
     },
 
     async delete(binId: number): Promise<void> {
-        const response = await fetch(`${API_BASE}/bins/${binId}`, {
+        const response = await fetch(`${API_BASE}/bins/${binId}/`, {
             method: 'DELETE',
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Failed to delete bin');
     },
@@ -57,12 +87,18 @@ export const binApi = {
             });
 
             xhr.open('POST', `${API_BASE}/bins/upload`);
+            const token = localStorage.getItem('token');
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
             xhr.send(formData);
         });
     },
 
     async optimizeRoute(threshold: number = 30): Promise<RouteResponse> {
-        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}`);
+        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}`, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) throw new Error('Failed to optimize route');
         return response.json();
     },
@@ -92,6 +128,10 @@ export const binApi = {
             });
 
             xhr.open('POST', `${API_BASE}/bins/upload`);
+            const token = localStorage.getItem('token');
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
             xhr.send(formData);
         });
     },

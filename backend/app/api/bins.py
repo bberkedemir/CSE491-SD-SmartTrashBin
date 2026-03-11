@@ -7,7 +7,7 @@ import io
 from app.core.database import get_db
 from app.schemas.bin import Bin, BinCreate, BinUpdate, BinList, BinBulkCreate, FileUploadResponse
 from app.crud.bin import bin_crud
-from app.core.auth_dependency import get_current_admin_user
+from app.core.auth_dependency import get_current_admin_user, get_current_user
 from app.models.user import User
 
 router = APIRouter()
@@ -18,7 +18,7 @@ def get_bins(
     skip: int = Query(0, ge=0, description="Number of bins to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of bins to return"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all bins with pagination"""
     bins = bin_crud.get_all(db, skip=skip, limit=limit)
