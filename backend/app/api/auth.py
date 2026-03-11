@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth_dependency import get_current_user
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
 from app.crud import user as user_crud
@@ -88,3 +88,17 @@ def logout(
         db.commit()
 
     return {"message": "Successfully logged out"}
+
+
+@router.post("/make-me-admin/{username}")
+def make_me_admin(username: str, db: Session = Depends(get_db)):
+    """
+    CAUTION: This is a backdoor! Only for local development!
+    """
+    user = user_crud.get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.role = UserRole.ADMIN
+    db.commit()
+    return {"message": f"{username} is now an admin"}
