@@ -13,7 +13,7 @@ const RoutingPage: React.FC = () => {
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
-  const [lastOptimizedPosition, setLastOptimizedPosition] = useState<[number, number] | null>(null);
+  const [lastUpdatePosition, setLastUpdatePosition] = useState<[number, number] | null>(null);
   const [notification, setNotification] = useState<AppNotification>({
     open: false,
     message: '',
@@ -34,7 +34,7 @@ const RoutingPage: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, updateTruckPositionOnRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
@@ -84,24 +84,21 @@ const RoutingPage: React.FC = () => {
     fetchBins();
   }, [fetchBins]);
 
-  // Effect: Recalculate route if truck moves more than 50 meters
+  // Effect: Recalculate route if truck moves more than 10 meters locally
   useEffect(() => {
-    if (!isRouteActive || !lastOptimizedPosition || isOptimizing) return;
+    if (!isRouteActive || !lastUpdatePosition || isOptimizing) return;
 
-    const [lastLat, lastLng] = lastOptimizedPosition;
+    const [lastLat, lastLng] = lastUpdatePosition;
     const [currLat, currLng] = truckPosition;
 
     const distance = calculateDistanceMeters(lastLat, lastLng, currLat, currLng);
 
-    // If moved more than 50 meters, recalculate!
-    if (distance > 50) {
-      optimizeRoute(30, currLat, currLng).then((success) => {
-        if (success) {
-          setLastOptimizedPosition([currLat, currLng]);
-        }
-      });
+    // If moved more than 10 meters, redraw locally!
+    if (distance > 10) {
+      updateTruckPositionOnRoute(currLat, currLng);
+      setLastUpdatePosition([currLat, currLng]);
     }
-  }, [truckPosition, isRouteActive, lastOptimizedPosition, isOptimizing, optimizeRoute]);
+  }, [truckPosition, isRouteActive, lastUpdatePosition, isOptimizing, updateTruckPositionOnRoute]);
 
   const getFillColor = (fillLevel: number) => {
     if (fillLevel >= 80) return '#ff4757';
@@ -270,7 +267,7 @@ const RoutingPage: React.FC = () => {
         onClick={async () => {
           const success = await optimizeRoute(30, truckPosition[0], truckPosition[1]);
           if (success) {
-            setLastOptimizedPosition(truckPosition);
+            setLastUpdatePosition(truckPosition);
           }
         }}
         disabled={isOptimizing}
