@@ -30,7 +30,7 @@ const RoutingPage: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, clearRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
@@ -242,10 +242,10 @@ const RoutingPage: React.FC = () => {
             boxShadow: "none"
           }
         }}
-        onClick={() => optimizeRoute()}
+        onClick={() => isRouteActive ? clearRoute() : optimizeRoute()}
         disabled={isOptimizing}
       >
-        {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}
+        {isOptimizing ? "Optimizing..." : isRouteActive ? "✕ Clear Route" : "Optimize Route"}
       </Button>
 
       <NotificationSnackbar
