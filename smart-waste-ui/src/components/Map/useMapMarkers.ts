@@ -21,6 +21,8 @@ export function useMapMarkers(
     onTruckMove: (lat: number, lng: number) => void,
     onCreateBin: (data: NewBinData) => Promise<BinPoint>,
     onDeleteBin: (id: number) => Promise<void>,
+    onCollectBin: (id: number) => Promise<void>,
+    onThrowTrash: (id: number) => Promise<void>,
     onExitAddMode: () => void
 ) {
     const mapRef = useRef<L.Map | null>(null);
@@ -108,14 +110,15 @@ export function useMapMarkers(
         } else {
             // --- DEFAULT MODE: all bins with delete ---
             bins.forEach(bin => {
-                const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.binIcon })
+                const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.getBinIcon(bin.fill) })
                     .addTo(mapRef.current!)
                     .bindPopup(createMarkerPopupHtml(bin));
 
                 marker.on('popupopen', () => {
-                    const btn = document.getElementById(`del-${bin.id}`);
-                    if (btn) {
-                        btn.onclick = async () => {
+                    // Delete Button Binding
+                    const delBtn = document.getElementById(`del-${bin.id}`);
+                    if (delBtn) {
+                        delBtn.onclick = async () => {
                             try {
                                 await onDeleteBin(bin.id);
                                 marker.remove();
@@ -124,12 +127,37 @@ export function useMapMarkers(
                             }
                         };
                     }
+
+                    // Collect Button Binding
+                    const collectBtn = document.getElementById(`collect-${bin.id}`);
+                    if (collectBtn) {
+                        collectBtn.onclick = async () => {
+                            try {
+                                await onCollectBin(bin.id);
+                                // The react state update for fill=0 will trigger a re-render
+                                // causing `useMapMarkers` to re-draw the markers with the updated color and popup data
+                            } catch (error) {
+                                console.error('Failed to collect bin:', error);
+                            }
+                        };
+                    }
+                    // Throw Trash Button Binding
+                    const throwBtn = document.getElementById(`throw-${bin.id}`);
+                    if (throwBtn) {
+                        throwBtn.onclick = async () => {
+                            try {
+                                await onThrowTrash(bin.id);
+                            } catch (error) {
+                                console.error('Failed to throw trash:', error);
+                            }
+                        };
+                    }
                 });
 
                 markersRef.current.push(marker);
             });
         }
-    }, [bins, routeStops, onDeleteBin]);
+    }, [bins, routeStops, onDeleteBin, onCollectBin, onThrowTrash]);
 
     // Handle add-mode click
     useEffect(() => {

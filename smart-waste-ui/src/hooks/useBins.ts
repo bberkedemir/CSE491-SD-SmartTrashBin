@@ -29,5 +29,24 @@ export function useBins() {
         setBins(prev => prev.filter(bin => bin.id !== binId));
     }, []);
 
-    return { bins, loading, fetchBins, createBin, deleteBin };
+    const collectBin = useCallback(async (binId: number) => {
+        await binApi.collect(binId);
+        setBins(prev => prev.map(bin =>
+            bin.id === binId ? { ...bin, fill: 0 } : bin
+        ));
+    }, []);
+
+    const throwTrash = useCallback(async (binId: number) => {
+        const updatedBin = await binApi.throwTrash(binId);
+        setBins(prev => prev.map(bin =>
+            bin.id === binId ? updatedBin : bin
+        ));
+    }, []);
+
+    const simulateTime = useCallback(async () => {
+        await binApi.simulateTime();
+        await fetchBins();
+    }, [fetchBins]);
+
+    return { bins, loading, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime };
 }

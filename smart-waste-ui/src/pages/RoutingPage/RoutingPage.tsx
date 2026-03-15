@@ -9,7 +9,7 @@ import { binApi } from '../../api/binApi';
 import type { AppNotification } from '../../types/bin';
 
 const RoutingPage: React.FC = () => {
-  const { bins, fetchBins, createBin, deleteBin } = useBins();
+  const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
@@ -109,6 +109,14 @@ const RoutingPage: React.FC = () => {
   return (
     <>
       <Box sx={{ height: '100vh', width: '100%' }}>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={simulateTime}
+          style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}
+        >
+          ⏳ Simulate 12 Hours
+        </Button>
         <MapContainer
           bins={bins}
           routeStops={routeStops}
@@ -117,6 +125,8 @@ const RoutingPage: React.FC = () => {
           onTruckMove={(lat, lng) => setTruckPosition([lat, lng])}
           onCreateBin={createBin}
           onDeleteBin={deleteBin}
+          onCollectBin={collectBin}
+          onThrowTrash={throwTrash}
           onMapReady={handleMapReady}
           onExitAddMode={handleExitAddMode}
         />

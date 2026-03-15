@@ -27,6 +27,34 @@ export const binApi = {
         if (!response.ok) throw new Error('Failed to delete bin');
     },
 
+    async collect(binId: number): Promise<BinPoint> {
+        const response = await fetch(`${API_BASE}/bins/${binId}/collect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate collecting bin');
+        return response.json();
+    },
+
+    async throwTrash(binId: number): Promise<BinPoint> {
+        const response = await fetch(`${API_BASE}/bins/${binId}/throw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate throwing trash');
+        return response.json();
+    },
+
+    async simulateTime(): Promise<string> {
+        const response = await fetch(`${API_BASE}/bins/simulate-time`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate time passing');
+        const data = await response.json();
+        return data.message;
+    },
+
     upload(
         file: File,
         onProgress: (percent: number) => void
