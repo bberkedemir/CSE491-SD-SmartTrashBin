@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Button, LinearProgress } from '@mui/material';
+import { Box, Button, LinearProgress, Menu, MenuItem } from '@mui/material';
 import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
 import { useBins } from '../../hooks/useBins';
@@ -9,7 +9,7 @@ import { binApi } from '../../api/binApi';
 import type { AppNotification } from '../../types/bin';
 
 const RoutingPage: React.FC = () => {
-  const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime } = useBins();
+  const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
@@ -23,6 +23,16 @@ const RoutingPage: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Menu State
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const openMenu = Boolean(anchorEl);
+  const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
   const handleExitAddMode = useCallback(() => {
     setIsAddMode(false);
@@ -109,14 +119,15 @@ const RoutingPage: React.FC = () => {
   return (
     <>
       <Box sx={{ height: '100vh', width: '100%' }}>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={simulateTime}
-          style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}
-        >
-          ⏳ Simulate 12 Hours
-        </Button>
+        <Box style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={simulateTime}
+          >
+            ⏳ Simulate 12 Hours
+          </Button>
+        </Box>
         <MapContainer
           bins={bins}
           routeStops={routeStops}
@@ -142,11 +153,10 @@ const RoutingPage: React.FC = () => {
         id="file-upload-input"
       />
 
-      {/* Upload File Button */}
+      {/* Consolidated Data Options Button */}
       <Button
         variant="contained"
-        component="label"
-        htmlFor="file-upload-input"
+        onClick={handleMenuClick}
         disabled={isUploading}
         sx={{
           position: 'absolute',
@@ -178,8 +188,34 @@ const RoutingPage: React.FC = () => {
           }
         }}
       >
-        {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Upload File"}
+        {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Manage Data"}
       </Button>
+
+      {/* Data Options Dropdown Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={openMenu}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        sx={{ zIndex: 1001 }}
+      >
+        <MenuItem onClick={() => { exportData('json'); handleMenuClose(); }}>
+          <span style={{ marginRight: '8px' }}>📥</span> Export JSON
+        </MenuItem>
+        <MenuItem onClick={() => { exportData('csv'); handleMenuClose(); }}>
+          <span style={{ marginRight: '8px' }}>📥</span> Export CSV
+        </MenuItem>
+        <MenuItem onClick={() => { fileInputRef.current?.click(); handleMenuClose(); }}>
+          <span style={{ marginRight: '8px' }}>📤</span> Import File...
+        </MenuItem>
+      </Menu>
 
       {/* Progress Bar */}
       {isUploading && (

@@ -55,6 +55,24 @@ export const binApi = {
         return data.message;
     },
 
+    async exportData(format: 'json' | 'csv'): Promise<void> {
+        const response = await fetch(`${API_BASE}/bins/export?format=${format}`);
+        if (!response.ok) throw new Error(`Failed to export data as ${format}`);
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `bins_export.${format}`;
+
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    },
+
     upload(
         file: File,
         onProgress: (percent: number) => void

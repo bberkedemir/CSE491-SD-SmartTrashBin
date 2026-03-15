@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 import json
@@ -28,6 +29,45 @@ def get_bins(
         page=skip // limit + 1,
         size=len(bins)
     )
+
+
+@router.get("/export")
+def export_bins(
+    format: str = Query("json", description="Export format: json or csv"),
+    db: Session = Depends(get_db)
+):
+    """Export all bin data to JSON or CSV format"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    data = [
+        {
+            "id": b.id,
+            "lat": b.lat,
+            "lng": b.lng,
+            "title": b.title,
+            "fill": b.fill
+        }
+        for b in all_bins
+    ]
+    
+    if format.lower() == "csv":
+        output = io.StringIO()
+        if data:
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=bins_export.csv"}
+        )
+    else:
+        # Default to JSON
+        return JSONResponse(
+            content=data,
+            headers={"Content-Disposition": "attachment; filename=bins_export.json"}
+        )
 
 
 @router.get("/{bin_id}", response_model=Bin)

@@ -48,5 +48,9 @@ export function useBins() {
         await fetchBins();
     }, [fetchBins]);
 
-    return { bins, loading, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime };
+    const exportData = useCallback(async (format: 'json' | 'csv') => {
+        await binApi.exportData(format);
+    }, []);
+
+    return { bins, loading, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData };
 }
