@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Button, LinearProgress } from '@mui/material';
+import { Box, Button, LinearProgress, Menu, MenuItem } from '@mui/material';
 import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
 import { useBins } from '../../hooks/useBins';
 import { useRouteOptimization } from '../../hooks/useRouteOptimization';
+import { calculateDistanceMeters } from '../../utils/geoUtils';
 import { binApi } from '../../api/binApi';
 import type { AppNotification } from '../../types/bin';
 
 const RoutingPage: React.FC = () => {
-  const { bins, fetchBins, createBin, deleteBin } = useBins();
+  const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
+  // Default truck position set to roughly Campus Gate
+  const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
+  const [lastUpdatePosition, setLastUpdatePosition] = useState<[number, number] | null>(null);
   const [notification, setNotification] = useState<AppNotification>({
     open: false,
     message: '',
@@ -19,6 +23,16 @@ const RoutingPage: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Menu State
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const openMenu = Boolean(anchorEl);
+  const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
   const handleExitAddMode = useCallback(() => {
     setIsAddMode(false);
@@ -30,7 +44,7 @@ const RoutingPage: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, updateTruckPositionOnRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
@@ -84,6 +98,22 @@ const RoutingPage: React.FC = () => {
     fetchBins();
   }, [fetchBins]);
 
+  // Effect: Recalculate route if truck moves more than 10 meters locally
+  useEffect(() => {
+    if (!isRouteActive || !lastUpdatePosition || isOptimizing) return;
+
+    const [lastLat, lastLng] = lastUpdatePosition;
+    const [currLat, currLng] = truckPosition;
+
+    const distance = calculateDistanceMeters(lastLat, lastLng, currLat, currLng);
+
+    // If moved more than 10 meters, redraw locally!
+    if (distance > 10) {
+      updateTruckPositionOnRoute(currLat, currLng);
+      setLastUpdatePosition([currLat, currLng]);
+    }
+  }, [truckPosition, isRouteActive, lastUpdatePosition, isOptimizing, updateTruckPositionOnRoute]);
+
   const getFillColor = (fillLevel: number) => {
     if (fillLevel >= 80) return '#ff4757';
     if (fillLevel >= 50) return '#ffa502';
@@ -93,12 +123,25 @@ const RoutingPage: React.FC = () => {
   return (
     <>
       <Box sx={{ height: '100vh', width: '100%' }}>
+        <Box style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={simulateTime}
+          >
+            ⏳ Simulate 12 Hours
+          </Button>
+        </Box>
         <MapContainer
           bins={bins}
           routeStops={routeStops}
           isAddMode={isAddMode}
+          truckPosition={truckPosition}
+          onTruckMove={(lat, lng) => setTruckPosition([lat, lng])}
           onCreateBin={createBin}
           onDeleteBin={deleteBin}
+          onCollectBin={collectBin}
+          onThrowTrash={throwTrash}
           onMapReady={handleMapReady}
           onExitAddMode={handleExitAddMode}
         />
@@ -116,11 +159,10 @@ const RoutingPage: React.FC = () => {
             id="file-upload-input"
           />
 
-          {/* Upload File Button */}
+          {/* Consolidated Data Options Button */}
           <Button
             variant="contained"
-            component="label"
-            htmlFor="file-upload-input"
+            onClick={handleMenuClick}
             disabled={isUploading}
             sx={{
               position: 'absolute',
@@ -152,8 +194,34 @@ const RoutingPage: React.FC = () => {
               }
             }}
           >
-            {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Upload File"}
+            {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Manage Data"}
           </Button>
+
+          {/* Data Options Dropdown Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={openMenu}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            sx={{ zIndex: 1001 }}
+          >
+            <MenuItem onClick={() => { exportData('json'); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📥</span> Export JSON
+            </MenuItem>
+            <MenuItem onClick={() => { exportData('csv'); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📥</span> Export CSV
+            </MenuItem>
+            <MenuItem onClick={() => { fileInputRef.current?.click(); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📤</span> Import File...
+            </MenuItem>
+          </Menu>
 
           {/* Progress Bar */}
           {isUploading && (
@@ -184,6 +252,7 @@ const RoutingPage: React.FC = () => {
 
           {/* Add Marker Button */}
           <Button
+
             sx={{
               position: 'absolute',
               bottom: 20,
@@ -250,7 +319,12 @@ const RoutingPage: React.FC = () => {
             boxShadow: "none"
           }
         }}
-        onClick={() => optimizeRoute()}
+        onClick={async () => {
+          const success = await optimizeRoute(30, truckPosition[0], truckPosition[1]);
+          if (success) {
+            setLastUpdatePosition(truckPosition);
+          }
+        }}
         disabled={isOptimizing}
       >
         {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}

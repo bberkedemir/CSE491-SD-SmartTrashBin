@@ -57,6 +57,52 @@ export const binApi = {
         if (!response.ok) throw new Error('Failed to delete bin');
     },
 
+    async collect(binId: number): Promise<BinPoint> {
+        const response = await fetch(`${API_BASE}/bins/${binId}/collect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate collecting bin');
+        return response.json();
+    },
+
+    async throwTrash(binId: number): Promise<BinPoint> {
+        const response = await fetch(`${API_BASE}/bins/${binId}/throw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate throwing trash');
+        return response.json();
+    },
+
+    async simulateTime(): Promise<string> {
+        const response = await fetch(`${API_BASE}/bins/simulate-time`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to simulate time passing');
+        const data = await response.json();
+        return data.message;
+    },
+
+    async exportData(format: 'json' | 'csv'): Promise<void> {
+        const response = await fetch(`${API_BASE}/bins/export?format=${format}`);
+        if (!response.ok) throw new Error(`Failed to export data as ${format}`);
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `bins_export.${format}`;
+
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    },
+
     upload(
         file: File,
         onProgress: (percent: number) => void
@@ -95,10 +141,8 @@ export const binApi = {
         });
     },
 
-    async optimizeRoute(threshold: number = 30): Promise<RouteResponse> {
-        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}`, {
-            headers: getAuthHeaders()
-        });
+    async optimizeRoute(threshold: number = 30, startLat: number, startLng: number): Promise<RouteResponse> {
+        const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}&start_lat=${startLat}&start_lng=${startLng}`,{ headers: getAuthHeaders()});
         if (!response.ok) throw new Error('Failed to optimize route');
         return response.json();
     },

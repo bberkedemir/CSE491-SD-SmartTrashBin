@@ -1,14 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 import json
 import csv
 import io
+import random
 from app.core.database import get_db
 from app.schemas.bin import Bin, BinCreate, BinUpdate, BinList, BinBulkCreate, FileUploadResponse
+from app.schemas.log import LogCreate
 from app.crud.bin import bin_crud
 from app.core.auth_dependency import get_current_admin_user, get_current_user
 from app.models.user import User
+from app.crud.log import LogCRUD
 
 router = APIRouter()
 
@@ -32,6 +36,45 @@ def get_bins(
     )
 
 
+@router.get("/export")
+def export_bins(
+    format: str = Query("json", description="Export format: json or csv"),
+    db: Session = Depends(get_db)
+):
+    """Export all bin data to JSON or CSV format"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    data = [
+        {
+            "id": b.id,
+            "lat": b.lat,
+            "lng": b.lng,
+            "title": b.title,
+            "fill": b.fill
+        }
+        for b in all_bins
+    ]
+    
+    if format.lower() == "csv":
+        output = io.StringIO()
+        if data:
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=bins_export.csv"}
+        )
+    else:
+        # Default to JSON
+        return JSONResponse(
+            content=data,
+            headers={"Content-Disposition": "attachment; filename=bins_export.json"}
+        )
+
+
 @router.get("/{bin_id}", response_model=Bin)
 def get_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
     """Get a specific bin by ID"""
@@ -43,25 +86,93 @@ def get_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = Dep
 
 @router.post("/", response_model=Bin, status_code=201)
 def create_bin(bin_data: BinCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
-    """Create a new bin"""
-    return bin_crud.create(db, bin_data)
+    """Create a new bin and log the event"""
+    new_bin = bin_crud.create(db, bin_data)
+    LogCRUD.create_log(db, LogCreate(
+        action="bin_added",
+        bin_id=new_bin.id,
+        fill_after=new_bin.fill,
+        notes=f"Bin '{new_bin.title}' added at ({new_bin.lat:.4f}, {new_bin.lng:.4f})"
+    ))
+    return new_bin
 
 
 @router.put("/{bin_id}", response_model=Bin)
 def update_bin(bin_id: int, bin_data: BinUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
-    """Update an existing bin"""
-    bin = bin_crud.update(db, bin_id, bin_data)
+    """Update an existing bin and log if the fill level changed"""
+    existing = bin_crud.get(db, bin_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Bin not found")
+    fill_before = existing.fill
+    updated_bin = bin_crud.update(db, bin_id, bin_data)
+    update_fields = bin_data.model_dump(exclude_unset=True)
+    if "fill" in update_fields and update_fields["fill"] != fill_before:
+        LogCRUD.create_log(db, LogCreate(
+            action="collected",
+            bin_id=updated_bin.id,
+            fill_before=fill_before,
+            fill_after=updated_bin.fill,
+            notes=f"Fill updated from {fill_before}% to {updated_bin.fill}%"
+        ))
+    return updated_bin
+
+
+@router.post("/{bin_id}/collect", response_model=Bin)
+def collect_bin(bin_id: int, db: Session = Depends(get_db)):
+    """Simulate collecting waste from a bin, resetting its fill level to 0"""
+    bin = bin_crud.update(db, bin_id, BinUpdate(fill=0))
     if not bin:
         raise HTTPException(status_code=404, detail="Bin not found")
     return bin
 
 
+@router.post("/{bin_id}/throw", response_model=Bin)
+def throw_trash(bin_id: int, db: Session = Depends(get_db)):
+    """Simulate someone throwing trash into a bin"""
+    bin = bin_crud.get(db, bin_id)
+    if not bin:
+        raise HTTPException(status_code=404, detail="Bin not found")
+    
+    amount = random.randint(10, 30)
+    new_fill = min(100, bin.fill + amount)
+    
+    updated_bin = bin_crud.update(db, bin_id, BinUpdate(fill=new_fill))
+    return updated_bin
+
+
+@router.post("/simulate-time", status_code=200)
+def simulate_time(db: Session = Depends(get_db)):
+    """Simulate 12 hours passing over the city, adding random trash to every bin"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    
+    updated_count = 0
+    for bin in all_bins:
+        amount = random.randint(5, 50)
+        new_fill = min(100, bin.fill + amount)
+        if new_fill != bin.fill:
+            bin_crud.update(db, bin.id, BinUpdate(fill=new_fill))
+            updated_count += 1
+            
+    return {"message": f"Successfully simulated time. Updated {updated_count} bins."}
+
+
 @router.delete("/{bin_id}", status_code=204)
 def delete_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
-    """Delete a bin"""
-    success = bin_crud.delete(db, bin_id)
-    if not success:
+    """Delete a bin and log the event"""
+    existing = bin_crud.get(db, bin_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Bin not found")
+    # Save info before deletion; log with bin_id=None to avoid FK constraint
+    # (the bin won't exist anymore, so referencing it would violate the FK)
+    bin_title = existing.title
+    fill_before = existing.fill
+    bin_crud.delete(db, bin_id)
+    LogCRUD.create_log(db, LogCreate(
+        action="bin_deleted",
+        bin_id=None,
+        fill_before=fill_before,
+        notes=f"Bin #{bin_id} '{bin_title}' deleted"
+    ))
 
 
 @router.post("/bulk", response_model=List[Bin], status_code=201)
