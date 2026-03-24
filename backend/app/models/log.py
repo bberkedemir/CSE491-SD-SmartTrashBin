@@ -6,7 +6,7 @@ class CollectionLog(Base):
     __tablename__ = "collection_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    bin_id = Column(Integer, ForeignKey("bins.id"))
+    bin_id = Column(Integer, ForeignKey("bins.id", ondelete="SET NULL"), nullable=True)
     action = Column(String)
     fill_before = Column(Integer, nullable=True)
     fill_after = Column(Integer, nullable=True)

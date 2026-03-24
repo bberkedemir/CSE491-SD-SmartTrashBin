@@ -6,7 +6,9 @@ import csv
 import io
 from app.core.database import get_db
 from app.schemas.bin import Bin, BinCreate, BinUpdate, BinList, BinBulkCreate, FileUploadResponse
+from app.schemas.log import LogCreate
 from app.crud.bin import bin_crud
+from app.crud.log import LogCRUD
 
 router = APIRouter()
 
@@ -40,25 +42,54 @@ def get_bin(bin_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=Bin, status_code=201)
 def create_bin(bin_data: BinCreate, db: Session = Depends(get_db)):
-    """Create a new bin"""
-    return bin_crud.create(db, bin_data)
+    """Create a new bin and log the event"""
+    new_bin = bin_crud.create(db, bin_data)
+    LogCRUD.create_log(db, LogCreate(
+        action="bin_added",
+        bin_id=new_bin.id,
+        fill_after=new_bin.fill,
+        notes=f"Bin '{new_bin.title}' added at ({new_bin.lat:.4f}, {new_bin.lng:.4f})"
+    ))
+    return new_bin
 
 
 @router.put("/{bin_id}", response_model=Bin)
 def update_bin(bin_id: int, bin_data: BinUpdate, db: Session = Depends(get_db)):
-    """Update an existing bin"""
-    bin = bin_crud.update(db, bin_id, bin_data)
-    if not bin:
+    """Update an existing bin and log if the fill level changed"""
+    existing = bin_crud.get(db, bin_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Bin not found")
-    return bin
+    fill_before = existing.fill
+    updated_bin = bin_crud.update(db, bin_id, bin_data)
+    update_fields = bin_data.model_dump(exclude_unset=True)
+    if "fill" in update_fields and update_fields["fill"] != fill_before:
+        LogCRUD.create_log(db, LogCreate(
+            action="collected",
+            bin_id=updated_bin.id,
+            fill_before=fill_before,
+            fill_after=updated_bin.fill,
+            notes=f"Fill updated from {fill_before}% to {updated_bin.fill}%"
+        ))
+    return updated_bin
 
 
 @router.delete("/{bin_id}", status_code=204)
 def delete_bin(bin_id: int, db: Session = Depends(get_db)):
-    """Delete a bin"""
-    success = bin_crud.delete(db, bin_id)
-    if not success:
+    """Delete a bin and log the event"""
+    existing = bin_crud.get(db, bin_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Bin not found")
+    # Save info before deletion; log with bin_id=None to avoid FK constraint
+    # (the bin won't exist anymore, so referencing it would violate the FK)
+    bin_title = existing.title
+    fill_before = existing.fill
+    bin_crud.delete(db, bin_id)
+    LogCRUD.create_log(db, LogCreate(
+        action="bin_deleted",
+        bin_id=None,
+        fill_before=fill_before,
+        notes=f"Bin #{bin_id} '{bin_title}' deleted"
+    ))
 
 
 @router.post("/bulk", response_model=List[Bin], status_code=201)
