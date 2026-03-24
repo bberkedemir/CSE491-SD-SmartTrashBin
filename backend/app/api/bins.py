@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 import json
 import csv
 import io
+import random
 from app.core.database import get_db
 from app.schemas.bin import Bin, BinCreate, BinUpdate, BinList, BinBulkCreate, FileUploadResponse
 from app.crud.bin import bin_crud
@@ -29,6 +31,45 @@ def get_bins(
     )
 
 
+@router.get("/export")
+def export_bins(
+    format: str = Query("json", description="Export format: json or csv"),
+    db: Session = Depends(get_db)
+):
+    """Export all bin data to JSON or CSV format"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    data = [
+        {
+            "id": b.id,
+            "lat": b.lat,
+            "lng": b.lng,
+            "title": b.title,
+            "fill": b.fill
+        }
+        for b in all_bins
+    ]
+    
+    if format.lower() == "csv":
+        output = io.StringIO()
+        if data:
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=bins_export.csv"}
+        )
+    else:
+        # Default to JSON
+        return JSONResponse(
+            content=data,
+            headers={"Content-Disposition": "attachment; filename=bins_export.json"}
+        )
+
+
 @router.get("/{bin_id}", response_model=Bin)
 def get_bin(bin_id: int, db: Session = Depends(get_db)):
     """Get a specific bin by ID"""
@@ -51,6 +92,45 @@ def update_bin(bin_id: int, bin_data: BinUpdate, db: Session = Depends(get_db)):
     if not bin:
         raise HTTPException(status_code=404, detail="Bin not found")
     return bin
+
+
+@router.post("/{bin_id}/collect", response_model=Bin)
+def collect_bin(bin_id: int, db: Session = Depends(get_db)):
+    """Simulate collecting waste from a bin, resetting its fill level to 0"""
+    bin = bin_crud.update(db, bin_id, BinUpdate(fill=0))
+    if not bin:
+        raise HTTPException(status_code=404, detail="Bin not found")
+    return bin
+
+
+@router.post("/{bin_id}/throw", response_model=Bin)
+def throw_trash(bin_id: int, db: Session = Depends(get_db)):
+    """Simulate someone throwing trash into a bin"""
+    bin = bin_crud.get(db, bin_id)
+    if not bin:
+        raise HTTPException(status_code=404, detail="Bin not found")
+    
+    amount = random.randint(10, 30)
+    new_fill = min(100, bin.fill + amount)
+    
+    updated_bin = bin_crud.update(db, bin_id, BinUpdate(fill=new_fill))
+    return updated_bin
+
+
+@router.post("/simulate-time", status_code=200)
+def simulate_time(db: Session = Depends(get_db)):
+    """Simulate 12 hours passing over the city, adding random trash to every bin"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    
+    updated_count = 0
+    for bin in all_bins:
+        amount = random.randint(5, 50)
+        new_fill = min(100, bin.fill + amount)
+        if new_fill != bin.fill:
+            bin_crud.update(db, bin.id, BinUpdate(fill=new_fill))
+            updated_count += 1
+            
+    return {"message": f"Successfully simulated time. Updated {updated_count} bins."}
 
 
 @router.delete("/{bin_id}", status_code=204)

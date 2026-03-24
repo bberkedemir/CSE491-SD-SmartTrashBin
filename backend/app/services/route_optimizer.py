@@ -103,15 +103,13 @@ class RouteOptimizerService:
             unvisited.remove(nearest_index)
             current_index = nearest_index
             
-        # Return to start
-        return_distance = distance_matrix[current_index][start_index]
-        total_distance += return_distance
-        route_indices.append(start_index)
+        # DO NOT return to start to make it an open-ended route ending at the last bin
         
         return route_indices, total_distance
 
+
     @staticmethod
-    def optimize_route(db: Session, threshold: int = 75) -> RouteResponse:
+    def optimize_route(db: Session, threshold: int = 75, start_lat: float = ENTRY_POINT['lat'], start_lng: float = ENTRY_POINT['lng']) -> RouteResponse:
         """
         Fetch bins above threshold and generate optimized route using OSRM
         """
@@ -140,7 +138,8 @@ class RouteOptimizerService:
 
         # 2. Prepare locations list (Start Point + Bins)
         # Index 0 will be the Start Point
-        all_locations = [ENTRY_POINT] + bins_data
+        dynamic_start = {"id": -1, "title": "Garbage Truck", "lat": start_lat, "lng": start_lng, "fill": 0}
+        all_locations = [dynamic_start] + bins_data
         
         # 3. Get Distance Matrix from OSRM
         try:
