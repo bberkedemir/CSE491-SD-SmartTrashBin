@@ -1,7 +1,7 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, Tooltip, Avatar, Typography } from '@mui/material';
 import { Map, Dashboard, History, Logout } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
-import { authApi } from '../../api/authApi';
+import { useAuth } from '../../context/AuthProvider';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
@@ -10,8 +10,7 @@ const navItems = [
 ];
 
 export const Sidebar: React.FC = () => {
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
+  const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
 
   const visibleNavItems = navItems.filter(item => {
@@ -22,7 +21,18 @@ export const Sidebar: React.FC = () => {
   });
 
   const handleLogout = () => {
-    authApi.logout();
+    logout();
+  };
+
+  // Get initials from full_name (e.g. "John Doe" -> "JD")
+  const getInitials = (name: string) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -42,39 +52,74 @@ export const Sidebar: React.FC = () => {
         zIndex: 1200,
       }}
     >
-      <List>
-        {visibleNavItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ mb: 1 }}>
-            <ListItemButton
-              component={NavLink}
-              to={item.path}
+      {/* User identity at the top */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+        {user && (
+          <Tooltip
+            title={
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{user.full_name}</Typography>
+                <Typography variant="caption">{user.username}</Typography>
+                <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                  {user.role === 'admin' ? 'Admin' : 'Truck Driver'}
+                </Typography>
+              </Box>
+            }
+            placement="right"
+            arrow
+          >
+            <Avatar
               sx={{
-                borderRadius: 1,
-                minWidth: 48,
-                minHeight: 48,
-                justifyContent: 'center',
-                '&.active': {
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                },
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                },
+                width: 36,
+                height: 36,
+                bgcolor: 'rgba(255,255,255,0.25)',
+                color: 'white',
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                mb: 1,
               }}
             >
-              <ListItemIcon
+              {getInitials(user.full_name)}
+            </Avatar>
+          </Tooltip>
+        )}
+
+        <List>
+          {visibleNavItems.map((item) => (
+            <ListItem key={item.path} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                component={NavLink}
+                to={item.path}
                 sx={{
-                  minWidth: 0,
-                  mr: 0,
+                  borderRadius: 1,
+                  minWidth: 48,
+                  minHeight: 48,
                   justifyContent: 'center',
-                  color: 'white',
+                  '&.active': {
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                  },
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  },
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: 0,
+                    justifyContent: 'center',
+                    color: 'white',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+
       <List>
         <ListItem disablePadding>
           <ListItemButton

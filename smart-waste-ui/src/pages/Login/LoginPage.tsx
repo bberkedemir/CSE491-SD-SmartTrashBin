@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { authApi } from '../../api/authApi';
+import { useAuth } from '../../context/AuthProvider';
+import { useNavigate } from 'react-router-dom';
 import '../auth.css';
 
 export default function LoginPage() {
+    const { login } = useAuth();
+    const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -13,13 +16,11 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
         try {
-            const response = await authApi.login(username, password);
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('user', JSON.stringify(response.user));
-            window.location.href = '/';
+            await login(username, password);
+            navigate('/', { replace: true });
         } catch (err: any) {
+            console.error(`[LoginPage] Login error:`, err?.message || err);
             setError('Invalid username or password. Please try again.');
-            console.error(err);
         } finally {
             setLoading(false);
         }

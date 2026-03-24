@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { authApi } from '../../api/authApi';
+import { useAuth } from '../../context/AuthProvider';
+import { useNavigate } from 'react-router-dom';
 import '../auth.css';
 
 export default function RegisterPage() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -15,13 +18,11 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      const response = await authApi.register(username, email, fullName, password);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      window.location.href = '/';
+      await register(username, email, fullName, password);
+      navigate('/', { replace: true });
     } catch (err: any) {
+      console.error(`[RegisterPage] Registration error:`, err?.message || err);
       setError('Registration failed. Username or email may already be taken.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -87,10 +88,10 @@ export default function RegisterPage() {
           </div>
 
           <div className="auth-field">
-            <select className="auth-input" disabled value="truck_driver">
-              <option value="truck_driver">Truck Driver</option>
+            <select className="auth-input" disabled value="admin">
+              <option value="admin">Admin</option>
             </select>
-            <p className="auth-role-help">New accounts are registered as Truck Driver by default.</p>
+            <p className="auth-role-help">New accounts are registered as Admin by default.</p>
           </div>
 
           <div className="auth-field">
