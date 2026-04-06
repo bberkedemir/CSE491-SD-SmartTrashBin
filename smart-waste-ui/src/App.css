@@ -145,11 +145,9 @@ body,
 }
 
 /* === Add Mode Map Styling === */
-.add-mode-active {
-  border: 3px solid #23a200;
-  box-sizing: border-box;
-  transition: border 0.3s ease;
-  cursor: crosshair !important;
+.add-mode-active,
+.add-mode-active * {
+  cursor: var(--pin-cursor) !important;
 }
 
 /* === Animations === */

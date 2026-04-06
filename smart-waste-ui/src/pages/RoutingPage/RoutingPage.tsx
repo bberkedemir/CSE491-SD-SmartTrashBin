@@ -44,7 +44,7 @@ const RoutingPage: React.FC = () => {
     mapRef.current = map;
   }, []);
 
-  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, updateTruckPositionOnRoute } = useRouteOptimization(
+  const { routeStops, routeMetrics, isOptimizing, isRouteActive, optimizeRoute, clearRoute, updateTruckPositionOnRoute } = useRouteOptimization(
     mapRef,
     setNotification
   );
@@ -319,15 +319,10 @@ const RoutingPage: React.FC = () => {
             boxShadow: "none"
           }
         }}
-        onClick={async () => {
-          const success = await optimizeRoute(30, truckPosition[0], truckPosition[1]);
-          if (success) {
-            setLastUpdatePosition(truckPosition);
-          }
-        }}
+        onClick={() => isRouteActive ? clearRoute() : optimizeRoute(30, truckPosition[0], truckPosition[1])}
         disabled={isOptimizing}
       >
-        {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}
+        {isOptimizing ? "Optimizing..." : isRouteActive ? "✕ Clear Route" : "⚡ Optimize Route"}
       </Button>
 
       <NotificationSnackbar
