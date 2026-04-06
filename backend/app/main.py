@@ -2,13 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
-from app.models import bin, log
-from app.api import bins, routes, logs
+from app.models import user, bin, log, token_blacklist
+from app.api import bins, routes, auth, logs
 
 
 # Create database tables
+user.Base.metadata.create_all(bind=engine)
 bin.Base.metadata.create_all(bind=engine)
 log.Base.metadata.create_all(bind=engine)
+token_blacklist.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Smart Waste Bin API",
@@ -29,6 +31,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(bins.router, prefix=f"{settings.API_V1_STR}/bins", tags=["bins"])
 app.include_router(routes.router, prefix=f"{settings.API_V1_STR}/routes", tags=["routes"])
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(logs.router, prefix=f"{settings.API_V1_STR}/logs", tags=["logs"])
 
 @app.get("/")
@@ -38,4 +41,4 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy"}  

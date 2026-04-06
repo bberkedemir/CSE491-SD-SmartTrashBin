@@ -49,6 +49,10 @@ const RoutingPage: React.FC = () => {
     setNotification
   );
 
+  // Role-based rendering
+  const userStr = localStorage.getItem('user');
+  const isAdmin = userStr ? JSON.parse(userStr)?.role === 'admin' : false;
+
   const [showMetrics, setShowMetrics] = useState(false);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,141 +147,146 @@ const RoutingPage: React.FC = () => {
         />
       </Box>
 
-      {/* Floating Buttons */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,.csv"
-        onChange={handleFileChange}
-        style={{ display: 'none' }}
-        id="file-upload-input"
-      />
+      {/* Hidden file input + Upload File Button + Add Marker — Admin only */}
+      {isAdmin && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.csv"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+            id="file-upload-input"
+          />
 
-      {/* Consolidated Data Options Button */}
-      <Button
-        variant="contained"
-        onClick={handleMenuClick}
-        disabled={isUploading}
-        sx={{
-          position: 'absolute',
-          bottom: 70,
-          right: 20,
-          width: "140px",
-          height: "44px",
-          zIndex: 1000,
-          bgcolor: "#007bff",
-          color: "#ffffff",
-          fontWeight: 600,
-          fontSize: "14px",
-          borderRadius: "8px",
-          textTransform: "none",
-          boxShadow: "0 4px 12px rgba(0, 123, 255, 0.3)",
-          transition: "all 0.3s ease",
-          '&:hover': {
-            bgcolor: "#0056b3",
-            transform: "translateY(-2px)",
-            boxShadow: "0 6px 16px rgba(0, 123, 255, 0.4)",
-          },
-          '&:active': {
-            transform: "translateY(0px)",
-          },
-          '&:disabled': {
-            bgcolor: "#6c757d",
-            color: "#ffffff",
-            boxShadow: "none",
-          }
-        }}
-      >
-        {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Manage Data"}
-      </Button>
-
-      {/* Data Options Dropdown Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={openMenu}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        sx={{ zIndex: 1001 }}
-      >
-        <MenuItem onClick={() => { exportData('json'); handleMenuClose(); }}>
-          <span style={{ marginRight: '8px' }}>📥</span> Export JSON
-        </MenuItem>
-        <MenuItem onClick={() => { exportData('csv'); handleMenuClose(); }}>
-          <span style={{ marginRight: '8px' }}>📥</span> Export CSV
-        </MenuItem>
-        <MenuItem onClick={() => { fileInputRef.current?.click(); handleMenuClose(); }}>
-          <span style={{ marginRight: '8px' }}>📤</span> Import File...
-        </MenuItem>
-      </Menu>
-
-      {/* Progress Bar */}
-      {isUploading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 120,
-            right: 20,
-            left: 20,
-            zIndex: 999,
-          }}
-        >
-          <LinearProgress
-            variant="determinate"
-            value={uploadProgress}
+          {/* Consolidated Data Options Button */}
+          <Button
+            variant="contained"
+            onClick={handleMenuClick}
+            disabled={isUploading}
             sx={{
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: '#007bff',
-                borderRadius: 3,
+              position: 'absolute',
+              bottom: 70,
+              right: 20,
+              width: "140px",
+              height: "44px",
+              zIndex: 1000,
+              bgcolor: "#007bff",
+              color: "#ffffff",
+              fontWeight: 600,
+              fontSize: "14px",
+              borderRadius: "8px",
+              textTransform: "none",
+              boxShadow: "0 4px 12px rgba(0, 123, 255, 0.3)",
+              transition: "all 0.3s ease",
+              '&:hover': {
+                bgcolor: "#0056b3",
+                transform: "translateY(-2px)",
+                boxShadow: "0 6px 16px rgba(0, 123, 255, 0.4)",
+              },
+              '&:active': {
+                transform: "translateY(0px)",
+              },
+              '&:disabled': {
+                bgcolor: "#6c757d",
+                color: "#ffffff",
+                boxShadow: "none",
               }
             }}
-          />
-        </Box>
-      )}
+          >
+            {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Manage Data"}
+          </Button>
 
-      {/* Add Marker Button */}
-      <Button
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          right: 20,
-          width: "140px",
-          height: "44px",
-          zIndex: 1000,
-          bgcolor: isAddMode ? "#ff4757" : "#23a200",
-          color: "#ffffff",
-          fontWeight: 600,
-          fontSize: "14px",
-          borderRadius: "8px",
-          textTransform: "none",
-          boxShadow: isAddMode
-            ? "0 4px 12px rgba(255, 71, 87, 0.4)"
-            : "0 4px 12px rgba(35, 162, 0, 0.4)",
-          transition: "all 0.3s ease",
-          '&:hover': {
-            bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
-            transform: "translateY(-2px)",
-            boxShadow: isAddMode
-              ? "0 6px 16px rgba(255, 71, 87, 0.5)"
-              : "0 6px 16px rgba(35, 162, 0, 0.5)",
-          },
-          '&:active': {
-            transform: "translateY(0px)",
-          }
-        }}
-        onClick={() => setIsAddMode(!isAddMode)}
-      >
-        {isAddMode ? "✕ Cancel" : "+ Add Marker"}
-      </Button>
+          {/* Data Options Dropdown Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={openMenu}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            sx={{ zIndex: 1001 }}
+          >
+            <MenuItem onClick={() => { exportData('json'); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📥</span> Export JSON
+            </MenuItem>
+            <MenuItem onClick={() => { exportData('csv'); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📥</span> Export CSV
+            </MenuItem>
+            <MenuItem onClick={() => { fileInputRef.current?.click(); handleMenuClose(); }}>
+              <span style={{ marginRight: '8px' }}>📤</span> Import File...
+            </MenuItem>
+          </Menu>
+
+          {/* Progress Bar */}
+          {isUploading && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 120,
+                right: 20,
+                left: 20,
+                zIndex: 999,
+              }}
+            >
+              <LinearProgress
+                variant="determinate"
+                value={uploadProgress}
+                sx={{
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: '#007bff',
+                    borderRadius: 3,
+                  }
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Add Marker Button */}
+          <Button
+
+            sx={{
+              position: 'absolute',
+              bottom: 20,
+              right: 20,
+              width: "140px",
+              height: "44px",
+              zIndex: 1000,
+              bgcolor: isAddMode ? "#ff4757" : "#23a200",
+              color: "#ffffff",
+              fontWeight: 600,
+              fontSize: "14px",
+              borderRadius: "8px",
+              textTransform: "none",
+              boxShadow: isAddMode
+                ? "0 4px 12px rgba(255, 71, 87, 0.4)"
+                : "0 4px 12px rgba(35, 162, 0, 0.4)",
+              transition: "all 0.3s ease",
+              '&:hover': {
+                bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
+                transform: "translateY(-2px)",
+                boxShadow: isAddMode
+                  ? "0 6px 16px rgba(255, 71, 87, 0.5)"
+                  : "0 6px 16px rgba(35, 162, 0, 0.5)",
+              },
+              '&:active': {
+                transform: "translateY(0px)",
+              }
+            }}
+            onClick={() => setIsAddMode(!isAddMode)}
+          >
+            {isAddMode ? "✕ Cancel" : "+ Add Marker"}
+          </Button>
+        </>
+      )}
 
       {/* Optimize Route Button */}
       <Button
