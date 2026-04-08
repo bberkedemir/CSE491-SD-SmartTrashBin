@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import 'leaflet-polylinedecorator';
@@ -34,6 +34,21 @@ interface RouteResponse {
   route_geometry: number[][];
 }
 
+// Algorithm definitions
+const ALGORITHMS = [
+  { key: 'greedy', name: 'Greedy Nearest Neighbor', endpoint: '/api/v1/routes/optimize', color: '#3388ff' },
+  { key: '2opt', name: 'NN + 2-opt', endpoint: '/api/v1/routes/optimize-2nd', color: '#ff6b35' },
+  { key: 'oropt', name: 'NN + 2-opt + Or-Opt', endpoint: '/api/v1/routes/optimize-3rd', color: '#2ecc71' },
+  { key: 'sa', name: 'Simulated Annealing', endpoint: '/api/v1/routes/optimize-4th', color: '#e74c3c' },
+  { key: 'cw', name: 'Clarke-Wright Savings', endpoint: '/api/v1/routes/optimize-5th', color: '#9b59b6' },
+];
+
+interface CompareResult {
+  algorithm: typeof ALGORITHMS[0];
+  data: RouteResponse | null;
+  executionTimeMs: number;
+  error?: string;
+}
 
 const App: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
@@ -71,6 +86,14 @@ const App: React.FC = () => {
   const [routeDecorator, setRouteDecorator] = useState<any | null>(null);
   const [routeStops, setRouteStops] = useState<RouteStop[] | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
+
+  // Algorithm comparison state
+  const [showAlgoDropdown, setShowAlgoDropdown] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [compareResults, setCompareResults] = useState<CompareResult[]>([]);
+  const [compareProgress, setCompareProgress] = useState('');
+  const [isComparing, setIsComparing] = useState(false);
+  const [activeRouteColor, setActiveRouteColor] = useState('#3388ff');
 
   // API functions
   const fetchBins = async () => {
@@ -116,9 +139,8 @@ const App: React.FC = () => {
     }
   };
 
-  const optimizeRoute = async () => {
-    setIsOptimizing(true);
-    // clear previous route
+  // Clear route from map
+  const clearRouteFromMap = useCallback(() => {
     if (routePolyline) {
       routePolyline.remove();
       setRoutePolyline(null);
@@ -127,80 +149,78 @@ const App: React.FC = () => {
       routeDecorator.remove();
       setRouteDecorator(null);
     }
-    // We update markers via state now, so no need to manually remove depotMarker here
     if (routeStops) {
       setRouteStops(null);
     }
+  }, [routePolyline, routeDecorator, routeStops]);
+
+  // Draw route on map with specific color
+  const drawRouteOnMap = useCallback((data: RouteResponse, color: string) => {
+    // Clear previous
+    clearRouteFromMap();
+
+    let latlngs: L.LatLngExpression[] = [];
+
+    if (data.route_geometry && data.route_geometry.length > 0) {
+      latlngs = data.route_geometry as L.LatLngExpression[];
+    } else if (data.route_sequence && data.route_sequence.length > 0) {
+      latlngs = data.route_sequence.map((stop: RouteStop) => [stop.lat, stop.lng]);
+    }
+
+    if (latlngs.length > 0 && mapRef.current) {
+      const polyline = L.polyline(latlngs, {
+        color: color,
+        weight: 5,
+        opacity: 0.8,
+        lineJoin: 'round'
+      }).addTo(mapRef.current);
+
+      const decorator = (L as any).polylineDecorator(polyline, {
+        patterns: [
+          {
+            offset: '5%',
+            repeat: '300px',
+            symbol: (L as any).Symbol.arrowHead({
+              pixelSize: 15,
+              polygon: false,
+              pathOptions: { stroke: true, color: color, weight: 3 }
+            })
+          }
+        ]
+      }).addTo(mapRef.current);
+      setRouteDecorator(decorator);
+
+      mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      setRoutePolyline(polyline);
+      setRouteStops(data.route_sequence);
+      setActiveRouteColor(color);
+    }
+  }, [clearRouteFromMap]);
+
+  // Optimize route with specific algorithm
+  const optimizeWithAlgorithm = async (algo: typeof ALGORITHMS[0]) => {
+    setIsOptimizing(true);
+    setShowAlgoDropdown(false);
+    clearRouteFromMap();
 
     try {
-      const response = await fetch('/api/v1/routes/optimize?threshold=30'); // using 30 for demo purposes
+      const response = await fetch(`${algo.endpoint}?threshold=30`);
       if (!response.ok) throw new Error('Failed to optimize route');
 
       const data: RouteResponse = await response.json();
 
-      // Use geometry if available, otherwise fallback to sequence (straight lines)
-      let latlngs: L.LatLngExpression[] = [];
+      drawRouteOnMap(data, algo.color);
 
-      if (data.route_geometry && data.route_geometry.length > 0) {
-        // Backend already returns [lat, lng]
-        latlngs = data.route_geometry as L.LatLngExpression[];
-      } else if (data.route_sequence && data.route_sequence.length > 0) {
-        latlngs = data.route_sequence.map((stop: RouteStop) => [stop.lat, stop.lng]);
-      }
-
-      if (latlngs.length > 0) {
-        // Draw polyline
-        if (mapRef.current) {
-          const polyline = L.polyline(latlngs, {
-            color: '#3388ff', // Leaflet default blue
-            weight: 5,
-            opacity: 0.8,
-            lineJoin: 'round'
-          }).addTo(mapRef.current);
-
-          // Add arrows with polyline decorator
-          const decorator = (L as any).polylineDecorator(polyline, {
-            patterns: [
-              {
-                offset: '5%',
-                repeat: '300px',
-                symbol: (L as any).Symbol.arrowHead({
-                  pixelSize: 15,
-                  polygon: false,
-                  pathOptions: { stroke: true, color: '#3388ff', weight: 3 }
-                })
-              }
-            ]
-          }).addTo(mapRef.current);
-          setRouteDecorator(decorator);
-
-          // Fit bounds to show the whole route
-          mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-          setRoutePolyline(polyline);
-
-          // Update markers state to route
-          setRouteStops(data.route_sequence);
-
-          // Show notification
-          setNotification({
-            open: true,
-            message: `Route generated! Distance: ${data.total_distance_km} km`,
-            severity: 'success'
-          });
-        }
-      } else {
-        setNotification({
-          open: true,
-          message: 'No route found (no bins above threshold).',
-          severity: 'info'
-        });
-      }
+      setNotification({
+        open: true,
+        message: `${algo.name}: ${data.total_distance_km} km | ${data.estimated_time_minutes} min`,
+        severity: 'success'
+      });
     } catch (error) {
       console.error('Optimization error:', error);
       setNotification({
         open: true,
-        message: 'Failed to generate route.',
+        message: `Failed: ${algo.name}`,
         severity: 'error'
       });
     } finally {
@@ -208,6 +228,39 @@ const App: React.FC = () => {
     }
   };
 
+  // Compare all algorithms
+  const compareAllAlgorithms = async () => {
+    setShowAlgoDropdown(false);
+    setShowCompareModal(true);
+    setIsComparing(true);
+    setCompareResults([]);
+
+    const results: CompareResult[] = [];
+
+    for (let i = 0; i < ALGORITHMS.length; i++) {
+      const algo = ALGORITHMS[i];
+      setCompareProgress(`Running ${algo.name}... (${i + 1}/${ALGORITHMS.length})`);
+
+      const startTime = performance.now();
+      try {
+        const response = await fetch(`${algo.endpoint}?threshold=30`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data: RouteResponse = await response.json();
+        const elapsed = Math.round(performance.now() - startTime);
+
+        results.push({ algorithm: algo, data, executionTimeMs: elapsed });
+      } catch (error: any) {
+        const elapsed = Math.round(performance.now() - startTime);
+        results.push({ algorithm: algo, data: null, executionTimeMs: elapsed, error: error.message });
+      }
+
+      // Update results progressively
+      setCompareResults([...results]);
+    }
+
+    setIsComparing(false);
+    setCompareProgress('');
+  };
 
   // Upload functionality
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -230,10 +283,8 @@ const App: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Create XMLHttpRequest for progress tracking
       const xhr = new XMLHttpRequest();
 
-      // Progress tracking
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
           const percentComplete = (e.loaded / e.total) * 100;
@@ -241,19 +292,14 @@ const App: React.FC = () => {
         }
       });
 
-      // Handle completion
       xhr.addEventListener('load', () => {
         if (xhr.status === 201) {
           const response = JSON.parse(xhr.responseText);
-
-          // Show success notification
           setNotification({
             open: true,
             message: response.message,
             severity: response.results.skipped_count > 0 ? 'warning' : 'success'
           });
-
-          // Refresh bins data
           fetchBins();
         } else {
           const error = JSON.parse(xhr.responseText);
@@ -263,12 +309,10 @@ const App: React.FC = () => {
             severity: 'error'
           });
         }
-
         setIsUploading(false);
         setUploadProgress(0);
       });
 
-      // Handle errors
       xhr.addEventListener('error', () => {
         setNotification({
           open: true,
@@ -279,7 +323,6 @@ const App: React.FC = () => {
         setUploadProgress(0);
       });
 
-      // Send request
       xhr.open('POST', '/api/v1/bins/upload');
       xhr.send(formData);
 
@@ -294,7 +337,6 @@ const App: React.FC = () => {
       setUploadProgress(0);
     }
 
-    // Reset file input
     event.target.value = '';
   };
 
@@ -348,10 +390,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (mapRef.current) return;
 
-    // Leaflet map init
     mapRef.current = L.map("map").setView([36.89488259077369, 30.649857090761955], 13);
 
-    // Tile layer
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       minZoom: 16,
@@ -359,7 +399,6 @@ const App: React.FC = () => {
         '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapRef.current);
 
-    // Fetch bins on component mount
     fetchBins();
   }, []);
 
@@ -367,7 +406,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing markers
     mapRef.current.eachLayer((layer) => {
       if (layer instanceof L.Marker) {
         mapRef.current?.removeLayer(layer);
@@ -375,7 +413,6 @@ const App: React.FC = () => {
     });
 
     if (routeStops && routeStops.length > 0) {
-      // --- ROUTE MODE: Show numbered markers via Popup ---
       routeStops.forEach(stop => {
         if (stop.type === 'start' || stop.type === 'end') {
           L.marker([stop.lat, stop.lng], { icon: depotIcon })
@@ -390,7 +427,6 @@ const App: React.FC = () => {
       });
 
     } else {
-      // --- DEFAULT MODE: Show all bins ---
       points.forEach(p => {
         addMarker(
           mapRef.current!,
@@ -480,10 +516,31 @@ const App: React.FC = () => {
     };
   }, [isAddMode, createBin]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showAlgoDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.algo-dropdown-wrapper')) {
+        setShowAlgoDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showAlgoDropdown]);
+
+  // Find best result
+  const bestResult = compareResults.length > 0
+    ? compareResults.reduce((best, r) => {
+      if (!r.data) return best;
+      if (!best || !best.data) return r;
+      return r.data.total_distance_km < best.data.total_distance_km ? r : best;
+    }, null as CompareResult | null)
+    : null;
+
   return (
     <>
       <Box sx={{ height: "100vh", width: "100vw" }}>
-        {/* Leaflet map container */}
         <Box id="map" sx={{ height: "100%", width: "100%" }} />
       </Box>
 
@@ -597,43 +654,172 @@ const App: React.FC = () => {
         {isAddMode ? "✕ Cancel" : "+ Add Marker"}
       </Button>
 
-      {/* Optimize Route Button */}
-      <Button
+      {/* Optimize Route Button with Dropdown */}
+      <Box
+        className="algo-dropdown-wrapper"
         sx={{
           position: 'absolute',
           bottom: 20,
-          right: 170, // Positioned to the left of Add Marker
-          width: "160px",
-          height: "44px",
+          right: 170,
           zIndex: 1000,
-          bgcolor: "#9b59b6",
-          color: "#ffffff",
-          fontWeight: 600,
-          fontSize: "14px",
-          borderRadius: "8px",
-          textTransform: "none",
-          boxShadow: "0 4px 12px rgba(155, 89, 182, 0.4)",
-          transition: "all 0.3s ease",
-          '&:hover': {
-            bgcolor: "#8e44ad",
-            transform: "translateY(-2px)",
-            boxShadow: "0 6px 16px rgba(155, 89, 182, 0.5)",
-          },
-          '&:active': {
-            transform: "translateY(0px)",
-          },
-          '&:disabled': {
-            bgcolor: "#b3b3b3",
-            color: "#f0f0f0",
-            boxShadow: "none"
-          }
         }}
-        onClick={optimizeRoute}
-        disabled={isOptimizing}
       >
-        {isOptimizing ? "Optimizing..." : "⚡ Optimize Route"}
-      </Button>
+        {/* Dropdown Menu */}
+        {showAlgoDropdown && (
+          <div className="algo-dropdown">
+            {ALGORITHMS.map((algo) => (
+              <button
+                key={algo.key}
+                className="algo-dropdown-item"
+                onClick={() => optimizeWithAlgorithm(algo)}
+              >
+                <span className="algo-dot" style={{ backgroundColor: algo.color }} />
+                {algo.name}
+              </button>
+            ))}
+            <div className="algo-dropdown-divider" />
+            <button
+              className="algo-dropdown-item compare-all"
+              onClick={compareAllAlgorithms}
+            >
+              🔬 Compare All
+            </button>
+          </div>
+        )}
 
+        <Button
+          sx={{
+            width: "160px",
+            height: "44px",
+            bgcolor: "#9b59b6",
+            color: "#ffffff",
+            fontWeight: 600,
+            fontSize: "14px",
+            borderRadius: "8px",
+            textTransform: "none",
+            boxShadow: "0 4px 12px rgba(155, 89, 182, 0.4)",
+            transition: "all 0.3s ease",
+            '&:hover': {
+              bgcolor: "#8e44ad",
+              transform: "translateY(-2px)",
+              boxShadow: "0 6px 16px rgba(155, 89, 182, 0.5)",
+            },
+            '&:active': {
+              transform: "translateY(0px)",
+            },
+            '&:disabled': {
+              bgcolor: "#b3b3b3",
+              color: "#f0f0f0",
+              boxShadow: "none"
+            }
+          }}
+          onClick={() => setShowAlgoDropdown(!showAlgoDropdown)}
+          disabled={isOptimizing}
+        >
+          {isOptimizing ? "Optimizing..." : "⚡ Optimize ▾"}
+        </Button>
+      </Box>
+
+      {/* ============ Compare All Modal ============ */}
+      {showCompareModal && (
+        <div className="compare-overlay" onClick={(e) => {
+          if ((e.target as HTMLElement).classList.contains('compare-overlay') && !isComparing) {
+            setShowCompareModal(false);
+          }
+        }}>
+          <div className="compare-modal">
+            <h2>🔬 Algorithm Comparison</h2>
+            <p className="subtitle">All algorithms tested with threshold=30 on the same bin data</p>
+
+            {isComparing && compareResults.length === 0 ? (
+              <div className="compare-loading">
+                <div className="spinner" />
+                <p>Running algorithms...</p>
+                <p className="progress-text">{compareProgress}</p>
+              </div>
+            ) : (
+              <table className="compare-table">
+                <thead>
+                  <tr>
+                    <th>Algorithm</th>
+                    <th>Distance</th>
+                    <th>Time</th>
+                    <th>Stops</th>
+                    <th>Exec.</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareResults.map((result) => {
+                    const isBest = bestResult && result.algorithm.key === bestResult.algorithm.key && result.data;
+                    return (
+                      <tr
+                        key={result.algorithm.key}
+                        className={isBest && !isComparing ? 'best-row' : ''}
+                      >
+                        <td>
+                          <div className="algo-name-cell">
+                            <span className="algo-dot" style={{ backgroundColor: result.algorithm.color }} />
+                            {result.algorithm.name}
+                            {isBest && !isComparing && <span className="best-badge">BEST</span>}
+                          </div>
+                        </td>
+                        <td className="distance-cell">
+                          {result.data ? `${result.data.total_distance_km} km` : result.error ? '❌' : '...'}
+                        </td>
+                        <td>
+                          {result.data ? `${result.data.estimated_time_minutes} min` : '-'}
+                        </td>
+                        <td>
+                          {result.data ? result.data.total_stops : '-'}
+                        </td>
+                        <td>
+                          {result.executionTimeMs}ms
+                        </td>
+                        <td>
+                          {result.data && (
+                            <button
+                              className="show-btn"
+                              onClick={() => {
+                                drawRouteOnMap(result.data!, result.algorithm.color);
+                                setShowCompareModal(false);
+                                setNotification({
+                                  open: true,
+                                  message: `Showing: ${result.algorithm.name} — ${result.data!.total_distance_km} km`,
+                                  severity: 'info'
+                                });
+                              }}
+                            >
+                              Show ➜
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {isComparing && compareResults.length < ALGORITHMS.length && (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', color: '#888', padding: '12px' }}>
+                        {compareProgress}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+
+            <div className="compare-modal-footer">
+              <button
+                className="compare-close-btn"
+                onClick={() => setShowCompareModal(false)}
+                disabled={isComparing}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Snackbar */}
       <Snackbar
