@@ -1,10 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from app.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
@@ -16,12 +14,15 @@ class AuthService:
     @staticmethod
     def hash_password(plain_password: str) -> str:
         # in db we store hashed one
-        return pwd_context.hash(plain_password)
+        password_bytes = plain_password.encode("utf-8")[:72]
+        return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         # hashes with the same method. checks if same
-        return pwd_context.verify(plain_password, hashed_password)
+        password_bytes = plain_password.encode("utf-8")[:72]
+        hashed_bytes = hashed_password.encode("utf-8")
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
 
     @staticmethod
     def create_access_token(user_id: int, username: str) -> str:

@@ -50,7 +50,7 @@ export const binApi = {
     },
 
     async delete(binId: number): Promise<void> {
-        const response = await fetch(`${API_BASE}/bins/${binId}/`, {
+        const response = await fetch(`${API_BASE}/bins/${binId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
