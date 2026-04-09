@@ -148,7 +148,9 @@ const RoutingPage: React.FC = () => {
               boxShadow: "0 4px 12px rgba(40, 57, 48, 0.4)",
               '&:hover': {
                 bgcolor: "#1d2a23",
-              }
+              },
+              '&:focus': { outline: 'none' },
+              '&:focus-visible': { outline: 'none' }
             }}
           >
             Simulate 12 Hours
@@ -213,7 +215,9 @@ const RoutingPage: React.FC = () => {
                 bgcolor: "#6c757d",
                 color: "#ffffff",
                 boxShadow: "none",
-              }
+              },
+              '&:focus': { outline: 'none' },
+              '&:focus-visible': { outline: 'none' }
             }}
           >
             {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Manage Data"}
@@ -301,7 +305,9 @@ const RoutingPage: React.FC = () => {
               },
               '&:active': {
                 transform: "translateY(0px)",
-              }
+              },
+              '&:focus': { outline: 'none' },
+              '&:focus-visible': { outline: 'none' }
             }}
             onClick={() => setIsAddMode(!isAddMode)}
           >
@@ -337,7 +343,9 @@ const RoutingPage: React.FC = () => {
               bgcolor: "#d1c9bb",
               boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
             },
-            '&:disabled': { bgcolor: "#b3b3b3", color: "#f0f0f0", boxShadow: "none" }
+            '&:disabled': { bgcolor: "#b3b3b3", color: "#f0f0f0", boxShadow: "none" },
+            '&:focus': { outline: 'none' },
+            '&:focus-visible': { outline: 'none' }
           }}
           onClick={async () => {
             if (isRouteActive) {
@@ -375,7 +383,9 @@ const RoutingPage: React.FC = () => {
             '&:hover': {
               bgcolor: "#d1c9bb",
             },
-            '&:disabled': { bgcolor: "#9e9e9e", color: "#f0f0f0", boxShadow: "none" }
+            '&:disabled': { bgcolor: "#9e9e9e", color: "#f0f0f0", boxShadow: "none" },
+            '&:focus': { outline: 'none' },
+            '&:focus-visible': { outline: 'none' }
           }}
         >
           ▼
@@ -467,7 +477,9 @@ const RoutingPage: React.FC = () => {
               },
               '&:active': {
                 transform: "translateY(0px)",
-              }
+              },
+              '&:focus': { outline: 'none' },
+              '&:focus-visible': { outline: 'none' }
             }}
           >
             {showMetrics ? "Hide" : "Show"}
