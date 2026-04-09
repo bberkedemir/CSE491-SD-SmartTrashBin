@@ -7,6 +7,7 @@ import { useRouteOptimization } from '../../hooks/useRouteOptimization';
 import { calculateDistanceMeters } from '../../utils/geoUtils';
 import { binApi } from '../../api/binApi';
 import type { AppNotification } from '../../types/bin';
+import AlgorithmComparisonModal from '../../components/Map/AlgorithmComparisonModal';
 
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData } = useBins();
@@ -33,6 +34,17 @@ const RoutingPage: React.FC = () => {
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
+
+  const [optimizeAnchorEl, setOptimizeAnchorEl] = useState<null | HTMLElement>(null);
+  const openOptimizeMenu = Boolean(optimizeAnchorEl);
+  const handleOptimizeMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setOptimizeAnchorEl(event.currentTarget);
+  };
+  const handleOptimizeMenuClose = () => {
+    setOptimizeAnchorEl(null);
+  };
+
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   const handleExitAddMode = useCallback(() => {
     setIsAddMode(false);
@@ -126,10 +138,20 @@ const RoutingPage: React.FC = () => {
         <Box style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <Button
             variant="contained"
-            color="secondary"
             onClick={simulateTime}
+            sx={{
+              bgcolor: "#283930",
+              color: "#F5F7F3",
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(40, 57, 48, 0.4)",
+              '&:hover': {
+                bgcolor: "#1d2a23",
+              }
+            }}
           >
-            ⏳ Simulate 12 Hours
+            Simulate 12 Hours
           </Button>
         </Box>
         <MapContainer
@@ -171,18 +193,18 @@ const RoutingPage: React.FC = () => {
               width: "140px",
               height: "44px",
               zIndex: 1000,
-              bgcolor: "#007bff",
-              color: "#ffffff",
+              bgcolor: "#E1DACD",
+              color: "#283930",
               fontWeight: 600,
               fontSize: "14px",
               borderRadius: "8px",
               textTransform: "none",
-              boxShadow: "0 4px 12px rgba(0, 123, 255, 0.3)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               transition: "all 0.3s ease",
               '&:hover': {
-                bgcolor: "#0056b3",
+                bgcolor: "#d1c9bb",
                 transform: "translateY(-2px)",
-                boxShadow: "0 6px 16px rgba(0, 123, 255, 0.4)",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
               },
               '&:active': {
                 transform: "translateY(0px)",
@@ -212,13 +234,13 @@ const RoutingPage: React.FC = () => {
             }}
             sx={{ zIndex: 1001 }}
           >
-            <MenuItem onClick={() => { exportData('json'); handleMenuClose(); }}>
+            <MenuItem onClick={() => { handleMenuClose(); setTimeout(() => exportData('json'), 0); }}>
               <span style={{ marginRight: '8px' }}>📥</span> Export JSON
             </MenuItem>
-            <MenuItem onClick={() => { exportData('csv'); handleMenuClose(); }}>
+            <MenuItem onClick={() => { handleMenuClose(); setTimeout(() => exportData('csv'), 0); }}>
               <span style={{ marginRight: '8px' }}>📥</span> Export CSV
             </MenuItem>
-            <MenuItem onClick={() => { fileInputRef.current?.click(); handleMenuClose(); }}>
+            <MenuItem onClick={() => { handleMenuClose(); setTimeout(() => fileInputRef.current?.click(), 0); }}>
               <span style={{ marginRight: '8px' }}>📤</span> Import File...
             </MenuItem>
           </Menu>
@@ -260,22 +282,22 @@ const RoutingPage: React.FC = () => {
               width: "140px",
               height: "44px",
               zIndex: 1000,
-              bgcolor: isAddMode ? "#ff4757" : "#23a200",
-              color: "#ffffff",
+              bgcolor: isAddMode ? "#ff4757" : "#CCDCC9",
+              color: isAddMode ? "#ffffff" : "#283930",
               fontWeight: 600,
               fontSize: "14px",
               borderRadius: "8px",
               textTransform: "none",
               boxShadow: isAddMode
                 ? "0 4px 12px rgba(255, 71, 87, 0.4)"
-                : "0 4px 12px rgba(35, 162, 0, 0.4)",
+                : "0 4px 12px rgba(0,0,0,0.1)",
               transition: "all 0.3s ease",
               '&:hover': {
-                bgcolor: isAddMode ? "#ff3838" : "#1f8f00",
+                bgcolor: isAddMode ? "#ff3838" : "#b9cebd",
                 transform: "translateY(-2px)",
                 boxShadow: isAddMode
                   ? "0 6px 16px rgba(255, 71, 87, 0.5)"
-                  : "0 6px 16px rgba(35, 162, 0, 0.5)",
+                  : "0 6px 16px rgba(0,0,0,0.15)",
               },
               '&:active': {
                 transform: "translateY(0px)",
@@ -288,42 +310,121 @@ const RoutingPage: React.FC = () => {
         </>
       )}
 
-      {/* Optimize Route Button */}
-      <Button
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          right: 170,
-          width: "160px",
-          height: "44px",
-          zIndex: 1000,
-          bgcolor: "#9b59b6",
-          color: "#ffffff",
-          fontWeight: 600,
-          fontSize: "14px",
-          borderRadius: "8px",
-          textTransform: "none",
-          boxShadow: "0 4px 12px rgba(155, 89, 182, 0.4)",
-          transition: "all 0.3s ease",
-          '&:hover': {
-            bgcolor: "#8e44ad",
-            transform: "translateY(-2px)",
-            boxShadow: "0 6px 16px rgba(155, 89, 182, 0.5)",
-          },
-          '&:active': {
-            transform: "translateY(0px)",
-          },
-          '&:disabled': {
-            bgcolor: "#b3b3b3",
-            color: "#f0f0f0",
-            boxShadow: "none"
-          }
-        }}
-        onClick={() => isRouteActive ? clearRoute() : optimizeRoute(30, truckPosition[0], truckPosition[1])}
-        disabled={isOptimizing}
+      {/* Optimize Route Split Button */}
+      <Box sx={{
+        position: 'absolute',
+        bottom: 20,
+        right: 170,
+        zIndex: 1000,
+        display: 'flex'
+      }}>
+        <Button
+          sx={{
+            width: "140px",
+            height: "44px",
+            bgcolor: "#E1DACD",
+            color: "#283930",
+            fontWeight: 600,
+            fontSize: "14px",
+            borderTopLeftRadius: "8px",
+            borderBottomLeftRadius: "8px",
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            textTransform: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            transition: "all 0.3s ease",
+            '&:hover': {
+              bgcolor: "#d1c9bb",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+            },
+            '&:disabled': { bgcolor: "#b3b3b3", color: "#f0f0f0", boxShadow: "none" }
+          }}
+          onClick={async () => {
+            if (isRouteActive) {
+                clearRoute();
+            } else {
+                const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+                if (success) {
+                    setLastUpdatePosition(truckPosition);
+                }
+            }
+          }}
+          disabled={isOptimizing}
+        >
+          {isOptimizing ? "Optimizing..." : isRouteActive ? "✕ Clear Route" : "Optimize Route"}
+        </Button>
+        <Button
+          size="small"
+          aria-controls={openOptimizeMenu ? 'split-button-menu' : undefined}
+          aria-expanded={openOptimizeMenu ? 'true' : undefined}
+          aria-label="select optimization algorithm"
+          aria-haspopup="menu"
+          onClick={handleOptimizeMenuClick}
+          disabled={isOptimizing || isRouteActive}
+          sx={{
+            minWidth: "30px",
+            height: "44px",
+            bgcolor: "#E1DACD",
+            color: "#283930",
+            borderTopRightRadius: "8px",
+            borderBottomRightRadius: "8px",
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0,
+            borderLeft: "1px solid rgba(40, 57, 48, 0.2)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            '&:hover': {
+              bgcolor: "#d1c9bb",
+            },
+            '&:disabled': { bgcolor: "#9e9e9e", color: "#f0f0f0", boxShadow: "none" }
+          }}
+        >
+          ▼
+        </Button>
+      </Box>
+
+      {/* Optimize Menu */}
+      <Menu
+        id="split-button-menu"
+        anchorEl={optimizeAnchorEl}
+        open={openOptimizeMenu}
+        onClose={handleOptimizeMenuClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        sx={{ zIndex: 1001 }}
       >
-        {isOptimizing ? "Optimizing..." : isRouteActive ? "✕ Clear Route" : "⚡ Optimize Route"}
-      </Button>
+        <MenuItem onClick={() => { 
+          handleOptimizeMenuClose(); 
+          setTimeout(async () => {
+            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+            if (success) setLastUpdatePosition(truckPosition);
+          }, 0);
+        }}>
+          NN + 2-opt + Or-Opt (Best)
+        </MenuItem>
+        <MenuItem onClick={() => { 
+          handleOptimizeMenuClose(); 
+          setTimeout(async () => {
+            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'greedy');
+            if (success) setLastUpdatePosition(truckPosition);
+          }, 0);
+        }}>
+          Greedy Nearest Neighbor
+        </MenuItem>
+        <MenuItem onClick={() => { 
+          handleOptimizeMenuClose(); 
+          setTimeout(() => setIsCompareModalOpen(true), 0); 
+        }}>
+          Compare Algorithms
+        </MenuItem>
+      </Menu>
+
+      <AlgorithmComparisonModal
+        open={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        threshold={30}
+        startLat={truckPosition[0]}
+        startLng={truckPosition[1]}
+      />
 
       <NotificationSnackbar
         notification={notification}

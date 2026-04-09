@@ -162,3 +162,13 @@ body,
     transform: translateY(0);
   }
 }
+
+/* === Sidebar Integration === */
+.leaflet-left {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform: translateX(60px);
+}
+
+body.sidebar-open .leaflet-left {
+  transform: translateX(220px);
+}

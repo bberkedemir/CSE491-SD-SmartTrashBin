@@ -147,6 +147,12 @@ export const binApi = {
         return response.json();
     },
 
+    async optimizeRouteGreedy(threshold: number = 30, startLat: number, startLng: number): Promise<RouteResponse> {
+        const response = await fetch(`${API_BASE}/routes/optimize-greedy?threshold=${threshold}&start_lat=${startLat}&start_lng=${startLng}`,{ headers: getAuthHeaders()});
+        if (!response.ok) throw new Error('Failed to optimize route (Greedy)');
+        return response.json();
+    },
+
     importBins(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
             const formData = new FormData();
