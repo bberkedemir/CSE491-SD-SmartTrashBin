@@ -7,8 +7,9 @@ import {
     createRouteStopPopupHtml,
 } from './popupTemplates';
 import * as mapIcons from './mapIcons';
+import mapPinCursor from '../../assets/mapPinCursor.png';
 
-const ADD_MODE_CURSOR = 'crosshair';
+const ADD_MODE_CURSOR = `url(${mapPinCursor}) 16 32, crosshair`;
 
 const MAP_CENTER: L.LatLngExpression = [36.89488259077369, 30.649857090761955];
 const MAP_ZOOM = 13;
@@ -28,17 +29,23 @@ export function useMapMarkers(
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
     const truckMarkerRef = useRef<L.Marker | null>(null);
+    const addPopupRef = useRef<L.Popup | null>(null);
 
     useEffect(() => {
         const mapContainer = document.getElementById('map');
         if (!mapContainer) return;
 
         if (isAddMode) {
-            mapContainer.style.cursor = ADD_MODE_CURSOR;
+            mapContainer.style.setProperty('--pin-cursor', ADD_MODE_CURSOR);
             mapContainer.classList.add('add-mode-active');
         } else {
             mapContainer.style.cursor = '';
             mapContainer.classList.remove('add-mode-active');
+            // Close the add-marker popup when exiting add mode
+            if (addPopupRef.current && mapRef.current) {
+                mapRef.current.closePopup(addPopupRef.current);
+                addPopupRef.current = null;
+            }
         }
 
         return () => {
@@ -163,7 +170,11 @@ export function useMapMarkers(
     useEffect(() => {
         if (!mapRef.current) return;
 
+        const mapContainer = document.getElementById('map');
         const popup = L.popup();
+        addPopupRef.current = popup;
+
+        let justCreated = false;
 
         const onMapClick = (e: L.LeafletMouseEvent) => {
             if (!isAddMode) return;
@@ -172,6 +183,11 @@ export function useMapMarkers(
                 .setLatLng(e.latlng)
                 .setContent(createAddMarkerPopupHtml(e.latlng.lat, e.latlng.lng))
                 .openOn(mapRef.current!);
+
+            // Revert cursor to normal while popup is open
+            if (mapContainer) {
+                mapContainer.classList.remove('add-mode-active');
+            }
 
             setTimeout(() => {
                 const addButton = document.getElementById('addMarkerBtn');
@@ -188,8 +204,9 @@ export function useMapMarkers(
                             title,
                             fill: Math.floor(Math.random() * 101),
                         });
-                        popup.close();
+                        justCreated = true;
                         onExitAddMode();
+                        popup.close();
                     } catch (error) {
                         console.error('Failed to create bin:', error);
                     }
@@ -197,9 +214,22 @@ export function useMapMarkers(
             });
         };
 
+        // Restore pin cursor when popup closes (only if user dismissed without creating)
+        const onPopupClose = () => {
+            if (justCreated) {
+                justCreated = false;
+                return;
+            }
+            if (isAddMode && mapContainer) {
+                mapContainer.classList.add('add-mode-active');
+            }
+        };
+
         mapRef.current.on('click', onMapClick);
+        mapRef.current.on('popupclose', onPopupClose);
         return () => {
             mapRef.current?.off('click', onMapClick);
+            mapRef.current?.off('popupclose', onPopupClose);
         };
     }, [isAddMode, onCreateBin, onExitAddMode]);
 

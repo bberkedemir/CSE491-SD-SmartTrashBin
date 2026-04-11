@@ -11,7 +11,7 @@ from app.schemas.route import RouteResponse, RouteStop
 ENTRY_POINT = {"id": -1, "title": "Garbage Truck Depot", "lat": 36.892539, "lng":  30.663895, "fill": 0}
 OSRM_BASE_URL = "http://router.project-osrm.org"
 
-class RouteOptimizerService:
+class GreedyTravellingSalesmanService:
     @staticmethod
     def get_osrm_matrix(locations: List[Dict]) -> List[List[float]]:
         """
@@ -19,7 +19,6 @@ class RouteOptimizerService:
         locations: List of dicts with 'lat' and 'lng'.
         Returns: 2D list of distances in meters.
         """
-        # OSRM expects "lon,lat" format
         coordinates = [f"{loc['lng']},{loc['lat']}" for loc in locations]
         coordinates_str = ";".join(coordinates)
         
@@ -44,11 +43,9 @@ class RouteOptimizerService:
         Fetch the full route geometry from OSRM for the ordered list of locations.
         Returns: List of [lat, lng] coordinates for the polyline.
         """
-        # OSRM expects "lon,lat" format
         coordinates = [f"{loc['lng']},{loc['lat']}" for loc in ordered_locations]
         coordinates_str = ";".join(coordinates)
         
-        # Request full geometry (overview=full) and explicitly ask for geojson to get simplest format
         url = f"{OSRM_BASE_URL}/route/v1/driving/{coordinates_str}?overview=full&geometries=geojson"
         
         try:
@@ -64,11 +61,7 @@ class RouteOptimizerService:
                 print("OSRM returned no routes")
                 return []
 
-            # OSRM returns [lon, lat], but we want [lat, lon] for Leaflet
-            # geometry.coordinates is [[lon, lat], [lon, lat], ...]
             geometry = data['routes'][0]['geometry']['coordinates']
-            
-            # Flip to [lat, lon]
             lat_lon_geometry = [[coord[1], coord[0]] for coord in geometry]
             
             return lat_lon_geometry
@@ -92,7 +85,6 @@ class RouteOptimizerService:
         total_distance = 0.0
         
         while unvisited:
-            # Find nearest unvisited neighbor based on matrix
             nearest_index = min(unvisited, 
                                key=lambda idx: distance_matrix[current_index][idx])
             
@@ -107,13 +99,11 @@ class RouteOptimizerService:
         
         return route_indices, total_distance
 
-
     @staticmethod
     def optimize_route(db: Session, threshold: int = 75, start_lat: float = ENTRY_POINT['lat'], start_lng: float = ENTRY_POINT['lng']) -> RouteResponse:
         """
         Fetch bins above threshold and generate optimized route using OSRM
         """
-        # 1. Fetch bins from DB
         bins_query = db.query(Bin).filter(Bin.fill >= threshold).all()
         
         bins_data = []
@@ -136,29 +126,21 @@ class RouteOptimizerService:
                 route_geometry=[]
             )
 
-        # 2. Prepare locations list (Start Point + Bins)
-        # Index 0 will be the Start Point
         dynamic_start = {"id": -1, "title": "Garbage Truck", "lat": start_lat, "lng": start_lng, "fill": 0}
         all_locations = [dynamic_start] + bins_data
         
-        # 3. Get Distance Matrix from OSRM
         try:
-            distance_matrix = RouteOptimizerService.get_osrm_matrix(all_locations)
+            distance_matrix = GreedyTravellingSalesmanService.get_osrm_matrix(all_locations)
         except Exception as e:
             raise Exception(f"Failed to calculate route: {str(e)}")
 
-        # 4. Run TSP Algorithm
-        route_indices, total_distance_meters = RouteOptimizerService.nearest_neighbor_tsp(
+        route_indices, total_distance_meters = GreedyTravellingSalesmanService.nearest_neighbor_tsp(
             distance_matrix, start_index=0
         )
         
-        # 5. Get Ordered Locations for Geometry Fetch
         ordered_locations = [all_locations[i] for i in route_indices]
+        route_geometry = GreedyTravellingSalesmanService.get_osrm_route(ordered_locations)
         
-        # 6. Fetch Full Route Geometry
-        route_geometry = RouteOptimizerService.get_osrm_route(ordered_locations)
-        
-        # 7. Format Response
         route_sequence = []
         for i, location_idx in enumerate(route_indices):
             location = all_locations[location_idx]
@@ -179,10 +161,7 @@ class RouteOptimizerService:
                 type=stop_type
             ))
             
-        # Convert distance to km
         total_distance_km = total_distance_meters / 1000.0
-        
-        # Estimate time matches previous logic
         travel_time_minutes = total_distance_meters / 500
         service_time_minutes = len(bins_data) * 3
         estimated_time = travel_time_minutes + service_time_minutes

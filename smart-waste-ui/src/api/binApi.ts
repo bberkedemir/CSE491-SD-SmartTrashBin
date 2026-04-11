@@ -50,7 +50,7 @@ export const binApi = {
     },
 
     async delete(binId: number): Promise<void> {
-        const response = await fetch(`${API_BASE}/bins/${binId}/`, {
+        const response = await fetch(`${API_BASE}/bins/${binId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
@@ -144,6 +144,12 @@ export const binApi = {
     async optimizeRoute(threshold: number = 30, startLat: number, startLng: number): Promise<RouteResponse> {
         const response = await fetch(`${API_BASE}/routes/optimize?threshold=${threshold}&start_lat=${startLat}&start_lng=${startLng}`,{ headers: getAuthHeaders()});
         if (!response.ok) throw new Error('Failed to optimize route');
+        return response.json();
+    },
+
+    async optimizeRouteGreedy(threshold: number = 30, startLat: number, startLng: number): Promise<RouteResponse> {
+        const response = await fetch(`${API_BASE}/routes/optimize-greedy?threshold=${threshold}&start_lat=${startLat}&start_lng=${startLng}`,{ headers: getAuthHeaders()});
+        if (!response.ok) throw new Error('Failed to optimize route (Greedy)');
         return response.json();
     },
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import '../auth.css';
+import logoPng from '../../assets/logo.png';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -30,94 +31,78 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-root">
-      {/* Background decorative dots */}
-      <span className="auth-deco" style={{ top: '8%', left: '12%' }}>+</span>
-      <span className="auth-deco" style={{ top: '15%', right: '10%' }}>+</span>
-      <span className="auth-deco" style={{ bottom: '20%', left: '7%' }}>○</span>
-      <span className="auth-deco" style={{ bottom: '10%', right: '15%' }}>+</span>
-      <span className="auth-deco" style={{ top: '55%', left: '4%' }}>○</span>
-      <span className="auth-deco" style={{ top: '40%', right: '5%' }}>+</span>
+      <div className="auth-blob blob-1"></div>
+      <div className="auth-blob blob-2"></div>
 
-      {/* Logo */}
-      <div className="auth-logo">
-        <div className="auth-logo-icon">S</div>
-        <div className="auth-logo-text">
-          Smart<span>TrashBin</span>
-        </div>
-      </div>
-
-      {/* Card */}
-      <div className="auth-card">
-        <h1>Register</h1>
-
-        {error && <div className="auth-error">{error}</div>}
-
-        <form onSubmit={handleRegister} autoComplete="off">
-          <div className="auth-field">
-            <input
-              className="auth-input"
-              type="text"
-              placeholder="Full Name"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="auth-field">
-            <input
-              className="auth-input"
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="auth-field">
-            <input
-              className="auth-input"
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="auth-field">
-            <select className="auth-input" disabled value="admin">
-              <option value="admin">Admin</option>
-            </select>
-            <p className="auth-role-help">New accounts are registered as Admin by default.</p>
-          </div>
-
-          <div className="auth-field">
-            <input
-              className="auth-input"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <button className="auth-btn" type="submit" disabled={loading}>
-            {loading ? (
-              <span className="auth-btn-loading">
-                <span className="auth-spinner" />
-                Creating account…
-              </span>
-            ) : 'Register'}
+      <div className="auth-split-card">
+        {/* Colored Left Panel for switching to Login */}
+        <div className="auth-panel-colored">
+          <h2>Welcome Back!</h2>
+          <p>To keep connected with us please login with your personal info.</p>
+          <button className="auth-ghost-btn" onClick={() => navigate('/login')} type="button">
+            SIGN IN
           </button>
-        </form>
+        </div>
 
-        <div className="auth-link-row">
-          Already have an account?
-          <a href="/login">Log In</a>
+        {/* White Right Panel for Registering */}
+        <div className="auth-panel-white">
+          <div className="auth-logo-wrapper">
+            <img src={logoPng} alt="SmartTrashBin" className="auth-logo-img" />
+          </div>
+          <h1>Create Account</h1>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <form onSubmit={handleRegister} autoComplete="off" className="auth-form">
+            <div className="auth-input-group">
+              <input
+                className="auth-input"
+                type="text"
+                placeholder="Full Name"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="auth-input-group">
+              <input
+                className="auth-input"
+                type="email"
+                placeholder="Email Address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="auth-input-group">
+              <input
+                className="auth-input"
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="auth-input-group">
+              <input
+                className="auth-input"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button className="auth-main-btn" type="submit" disabled={loading}>
+              {loading ? 'Creating account...' : 'SIGN UP'}
+            </button>
+          </form>
         </div>
       </div>
     </div>
