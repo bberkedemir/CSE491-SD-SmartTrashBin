@@ -1,0 +1,13 @@
+# datasets
+dataset/
+rdd2022-DatasetNinja/
+test_videos/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.env/
+.venv/
