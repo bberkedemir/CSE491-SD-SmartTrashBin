@@ -26,7 +26,7 @@ for video in videos:
 
     wrt = cv2.VideoWriter(vid_output, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    print(f"Processing {video}")
+    print(f"Processing {video} for prediction...")
 
     while True:
         ret, frame = capture.read()
