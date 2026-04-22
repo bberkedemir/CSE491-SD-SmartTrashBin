@@ -145,11 +145,9 @@ body,
 }
 
 /* === Add Mode Map Styling === */
-.add-mode-active {
-  border: 3px solid #23a200;
-  box-sizing: border-box;
-  transition: border 0.3s ease;
-  cursor: crosshair !important;
+.add-mode-active,
+.add-mode-active * {
+  cursor: var(--pin-cursor) !important;
 }
 
 /* === Animations === */
@@ -163,4 +161,14 @@ body,
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* === Sidebar Integration === */
+.leaflet-left {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform: translateX(60px);
+}
+
+body.sidebar-open .leaflet-left {
+  transform: translateX(220px);
 }

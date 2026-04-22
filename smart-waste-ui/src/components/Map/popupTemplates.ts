@@ -17,10 +17,17 @@ export function createMarkerPopupHtml(data: BinPoint): string {
           <span class="marker-popup-label">Dolu:</span>
           <span class="marker-popup-value">%${data.fill.toFixed(2)}</span>
         </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="collect-${data.id}" class="marker-collect-btn" style="flex: 1; background: #2ed573; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold;">
+          Topla
+        </button>
+        <button id="throw-${data.id}" class="marker-throw-btn" style="flex: 1; background: #ffa502; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold;">
+          At
+        </button>
+        <button id="del-${data.id}" class="marker-delete-btn" style="flex: 1;">
+          Sil
+        </button>
       </div>
-      <button id="del-${data.id}" class="marker-delete-btn">
-        Sil
-      </button>
     </div>
   `;
 }
