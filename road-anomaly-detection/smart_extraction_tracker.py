@@ -2,17 +2,24 @@ import cv2
 import glob
 from ultralytics import YOLO
 from pathlib import Path
+import numpy as np
+
+# Flag for testing anomalies side by side with original image
+SAVE_SIDE_BY_SIDE_TEST = True
 
 # Load Model
 model = YOLO("best.pt")
 
 # Folders
-VID_DIR = Path("test_videos")
+VID_DIR = Path("test_videos/videos")
 OUTPUT_DIR = VID_DIR / "detected_output"
 EXTRACT_DIR = VID_DIR / "extracted_anomalies"
+TEST_DIR = VID_DIR / ".." / "testing_side_by_side"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
+if SAVE_SIDE_BY_SIDE_TEST:
+    TEST_DIR.mkdir(parents=True, exist_ok=True)
 
 # Get Videos
 videos = glob.glob(f"{VID_DIR}/*.mp4")
@@ -77,6 +84,30 @@ for video in videos:
                             
                             # Cache the key so we never save this specific tracked anomaly again
                             saved_anomalies.add(anomaly_key)
+
+                            if SAVE_SIDE_BY_SIDE_TEST:
+                                test_img_path = TEST_DIR / img_name
+                                # scale both images
+                                target_h = 720
+
+                                # full frame
+                                s_frame = target_h / max(1, annotated_frame.shape[0])
+                                resized_frame = cv2.resize(annotated_frame, (int(annotated_frame.shape[1] * s_frame), target_h))
+
+
+                                # box crop
+                                s_crop = target_h / max(1, crop.shape[0])
+                                resized_crop = cv2.resize(crop, (int(crop.shape[1] * s_crop), target_h))
+
+                                side_by_side = np.hstack((resized_frame, resized_crop))
+
+                                # debugging data on merged image
+                                cv2.putText(side_by_side, f"ID: {track_id}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+                                cv2.imwrite(str(test_img_path), side_by_side)
+
+                                print(f"Registered {class_name} [{track_id}] in {test_img_path}")
+
+
             
             wrt.write(annotated_frame)
 
@@ -85,3 +116,6 @@ for video in videos:
     print(f"Saved Annotated Video: {vid_output}")
 
 print(f"All tracking finished. Check {EXTRACT_DIR} for extracted anomalies.")
+
+if SAVE_SIDE_BY_SIDE_TEST:
+    print(f"Side by side tests stored in: {TEST_DIR}")
