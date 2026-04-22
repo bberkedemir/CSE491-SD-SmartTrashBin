@@ -1,0 +1,16 @@
+# datasets
+dataset/
+rdd2022-DatasetNinja/
+test_videos/detected_output/
+test_videos/extracted_anomalies/
+# test_videos/testing_side_by_side/
+test_videos/videos/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.env/
+.venv/
