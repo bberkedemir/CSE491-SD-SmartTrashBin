@@ -41,10 +41,10 @@ export const logout = async (token: string): Promise<void> => {
 
 // Bins
 export const getBins = async (): Promise<Bin[]> => {
-  const { data } = await api.get<{ items: Bin[]; total: number }>('/api/v1/bins/', {
+  const { data } = await api.get<{ bins: Bin[]; total: number }>('/api/v1/bins/', {
     params: { limit: 500 },
   });
-  return data.items;
+  return data.bins;
 };
 
 export const collectBin = async (binId: number): Promise<Bin> => {
