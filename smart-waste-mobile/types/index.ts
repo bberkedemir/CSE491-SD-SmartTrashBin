@@ -50,7 +50,15 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegisterCredentials {
+  username: string;
+  email: string;
+  full_name: string;
+  password: string;
+}
+
 export interface TokenResponse {
-  access_token: string;
+  user: User;
+  token: string;
   token_type: string;
 }

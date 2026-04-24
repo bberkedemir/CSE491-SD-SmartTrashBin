@@ -1,6 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Bin, RouteResponse, CollectionLog, LoginCredentials, TokenResponse, User } from '../types';
+import type { Bin, RouteResponse, CollectionLog, LoginCredentials, RegisterCredentials, TokenResponse, User } from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
 export const API_BASE_URL = 'http://192.168.1.24:8000';
@@ -21,12 +21,12 @@ api.interceptors.request.use(async (config) => {
 
 // Auth
 export const login = async (credentials: LoginCredentials): Promise<TokenResponse> => {
-  const params = new URLSearchParams();
-  params.append('username', credentials.username);
-  params.append('password', credentials.password);
-  const { data } = await api.post<TokenResponse>('/api/v1/auth/login', params, {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
+  const { data } = await api.post<TokenResponse>('/api/v1/auth/login', credentials);
+  return data;
+};
+
+export const register = async (credentials: RegisterCredentials): Promise<TokenResponse> => {
+  const { data } = await api.post<TokenResponse>('/api/v1/auth/register', credentials);
   return data;
 };
 

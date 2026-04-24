@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { login as apiLogin, logout as apiLogout, getMe } from '../services/api';
-import type { User, LoginCredentials } from '../types';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, getMe } from '../services/api';
+import type { User, LoginCredentials, RegisterCredentials } from '../types';
 
 interface AuthContextValue {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -39,10 +40,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (credentials: LoginCredentials) => {
     const response = await apiLogin(credentials);
-    await AsyncStorage.setItem('access_token', response.access_token);
-    setToken(response.access_token);
-    const me = await getMe();
-    setUser(me);
+    await AsyncStorage.setItem('access_token', response.token);
+    setToken(response.token);
+    setUser(response.user);
+  };
+
+  const register = async (credentials: RegisterCredentials) => {
+    const response = await apiRegister(credentials);
+    await AsyncStorage.setItem('access_token', response.token);
+    setToken(response.token);
+    setUser(response.user);
   };
 
   const logout = async () => {
@@ -58,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

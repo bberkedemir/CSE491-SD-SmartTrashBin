@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput, Button, HelperText } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -84,6 +84,15 @@ export default function LoginScreen() {
         >
           Sign In
         </Button>
+
+        <Button
+          mode="text"
+          onPress={() => router.push('/(auth)/register')}
+          style={styles.registerLink}
+          textColor="#558b2f"
+        >
+          Don't have an account? Create one
+        </Button>
       </View>
     </KeyboardAvoidingView>
   );
@@ -121,5 +130,8 @@ const styles = StyleSheet.create({
   },
   buttonContent: {
     paddingVertical: 6,
+  },
+  registerLink: {
+    marginTop: 4,
   },
 });
