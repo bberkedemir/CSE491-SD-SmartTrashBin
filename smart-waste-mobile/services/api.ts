@@ -66,10 +66,10 @@ export const getOptimizedRoute = async (
 
 // Logs
 export const getLogs = async (skip = 0, limit = 50): Promise<CollectionLog[]> => {
-  const { data } = await api.get<{ items: CollectionLog[]; total: number }>('/api/v1/logs/', {
+  const { data } = await api.get<{ logs: CollectionLog[]; total: number }>('/api/v1/logs/', {
     params: { skip, limit },
   });
-  return data.items;
+  return data.logs;
 };
 
 export default api;
