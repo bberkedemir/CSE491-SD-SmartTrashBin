@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate
 from app.services.auth_service import AuthService
 
@@ -28,6 +28,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_pw,
+        role=UserRole.TRUCK_DRIVER,
     )
 
     db.add(db_user)
