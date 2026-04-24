@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
+import { View, StyleSheet, Alert, Modal } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import type { LatLng } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -19,12 +20,18 @@ const DEFAULT_REGION = {
 export default function MapScreen() {
   const { user, logout } = useAuth();
   const mapRef = useRef<MapView>(null);
+  const hasDragged = useRef(false);
 
   const [bins, setBins] = useState<Bin[]>([]);
   const [loading, setLoading] = useState(true);
   const [binsError, setBinsError] = useState('');
   const [routeLoading, setRouteLoading] = useState(false);
+  const [rerouteLoading, setRerouteLoading] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [truckPosition, setTruckPosition] = useState<LatLng>({
+    latitude: DEFAULT_REGION.latitude,
+    longitude: DEFAULT_REGION.longitude,
+  });
   const [route, setRoute] = useState<RouteResponse | null>(null);
   const [selectedBin, setSelectedBin] = useState<Bin | null>(null);
 
@@ -38,6 +45,13 @@ export default function MapScreen() {
     if (status !== 'granted') return;
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
     setLocation(loc);
+    // Only sync truck position with GPS if driver hasn't manually dragged it yet
+    if (!hasDragged.current) {
+      setTruckPosition({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+    }
     mapRef.current?.animateToRegion(
       {
         latitude: loc.coords.latitude,
@@ -62,27 +76,41 @@ export default function MapScreen() {
     }
   };
 
-  const handleGetRoute = async () => {
-    const lat = location?.coords.latitude ?? DEFAULT_REGION.latitude;
-    const lng = location?.coords.longitude ?? DEFAULT_REGION.longitude;
-    setRouteLoading(true);
+  const optimizeFromPosition = async (pos: LatLng, isReroute = false) => {
+    if (isReroute) setRerouteLoading(true);
+    else setRouteLoading(true);
     try {
-      const r = await getOptimizedRoute(lat, lng);
+      const r = await getOptimizedRoute(pos.latitude, pos.longitude);
       const pickupStops = r.route_sequence.filter((s) => s.type === 'pickup');
       if (pickupStops.length === 0) {
-        Alert.alert('No bins', 'No bins are above the fill threshold right now.');
+        if (!isReroute) Alert.alert('No bins', 'No bins are above the fill threshold right now.');
         return;
       }
       setRoute(r);
-      const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
-      mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
-        animated: true,
-      });
+      if (!isReroute) {
+        const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+        mapRef.current?.fitToCoordinates(coords, {
+          edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
+          animated: true,
+        });
+      }
     } catch {
-      Alert.alert('Error', 'Could not compute route. Check your connection.');
+      if (!isReroute) Alert.alert('Error', 'Could not compute route. Check your connection.');
     } finally {
-      setRouteLoading(false);
+      if (isReroute) setRerouteLoading(false);
+      else setRouteLoading(false);
+    }
+  };
+
+  const handleGetRoute = () => optimizeFromPosition(truckPosition, false);
+
+  const handleTruckDragEnd = (e: { nativeEvent: { coordinate: LatLng } }) => {
+    const newPos = e.nativeEvent.coordinate;
+    hasDragged.current = true;
+    setTruckPosition(newPos);
+    // Auto re-optimize if a route is already shown
+    if (route) {
+      optimizeFromPosition(newPos, true);
     }
   };
 
@@ -98,7 +126,6 @@ export default function MapScreen() {
     ]);
   };
 
-  // geometry is [[lat, lng], ...] from OSRM via backend
   const routePolyline =
     route?.route_geometry?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [];
 
@@ -106,7 +133,6 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -141,7 +167,7 @@ export default function MapScreen() {
           />
         )}
 
-        {/* Route stop order numbers — pickup stops only */}
+        {/* Route stop order badges — pickup stops only */}
         {route?.route_sequence.filter((s) => s.type === 'pickup').map((stop, i) => (
           <Marker
             key={`stop-${stop.id}`}
@@ -153,9 +179,27 @@ export default function MapScreen() {
             </View>
           </Marker>
         ))}
+
+        {/* Draggable truck marker */}
+        <Marker
+          coordinate={truckPosition}
+          draggable
+          onDragEnd={handleTruckDragEnd}
+          anchor={{ x: 0.5, y: 0.5 }}
+          zIndex={10}
+        >
+          <View style={styles.truckMarker}>
+            <Text style={styles.truckEmoji}>🚛</Text>
+            {!hasDragged.current && (
+              <View style={styles.dragHint}>
+                <Text style={styles.dragHintText}>Drag to replan</Text>
+              </View>
+            )}
+          </View>
+        </Marker>
       </MapView>
 
-      {/* Top overlay: user chip + stats */}
+      {/* Top overlay: stats + logout */}
       <View style={styles.topOverlay}>
         <View style={styles.statsRow}>
           <View style={styles.statBubble}>
@@ -167,12 +211,7 @@ export default function MapScreen() {
             <Text style={styles.statLbl}>Need pickup</Text>
           </View>
         </View>
-        <IconButton
-          icon="logout"
-          size={20}
-          style={styles.logoutBtn}
-          onPress={handleLogout}
-        />
+        <IconButton icon="logout" size={20} style={styles.logoutBtn} onPress={handleLogout} />
       </View>
 
       {/* Legend */}
@@ -190,8 +229,16 @@ export default function MapScreen() {
         ))}
       </View>
 
-      {/* Route result banner */}
-      {route && (
+      {/* Re-routing indicator */}
+      {rerouteLoading && (
+        <View style={styles.rerouteBadge}>
+          <ActivityIndicator size="small" color="#fff" />
+          <Text style={styles.rerouteText}>Re-routing…</Text>
+        </View>
+      )}
+
+      {/* Route banner */}
+      {route && !rerouteLoading && (
         <View style={styles.routeBanner}>
           <View>
             <Text style={styles.bannerTitle}>Route ready — {route.total_stops} stops</Text>
@@ -222,19 +269,8 @@ export default function MapScreen() {
 
       {/* FABs */}
       <View style={styles.fabGroup}>
-        <FAB
-          icon="refresh"
-          size="small"
-          style={styles.fabLocation}
-          onPress={loadBins}
-          disabled={loading}
-        />
-        <FAB
-          icon="crosshairs-gps"
-          size="small"
-          style={styles.fabLocation}
-          onPress={requestLocation}
-        />
+        <FAB icon="refresh" size="small" style={styles.fabSmall} onPress={loadBins} disabled={loading} />
+        <FAB icon="crosshairs-gps" size="small" style={styles.fabSmall} onPress={requestLocation} />
         <FAB
           icon={routeLoading ? 'loading' : 'map-marker-path'}
           label={routeLoading ? 'Computing…' : 'Get Route'}
@@ -259,11 +295,7 @@ export default function MapScreen() {
                 <View style={styles.sheetHandle} />
                 <Text variant="titleMedium" style={styles.sheetTitle}>{selectedBin.title}</Text>
                 <View style={styles.sheetRow}>
-                  <Chip
-                    style={{ backgroundColor: markerColor(selectedBin.fill) }}
-                    textStyle={{ color: '#fff' }}
-                    icon="trash-can"
-                  >
+                  <Chip style={{ backgroundColor: markerColor(selectedBin.fill) }} textStyle={{ color: '#fff' }} icon="trash-can">
                     {selectedBin.fill}% full
                   </Chip>
                   <Chip icon="map-marker" compact>
@@ -271,11 +303,7 @@ export default function MapScreen() {
                   </Chip>
                 </View>
                 <FillBar fill={selectedBin.fill} />
-                <Button
-                  mode="outlined"
-                  onPress={() => setSelectedBin(null)}
-                  style={{ marginTop: 12 }}
-                >
+                <Button mode="outlined" onPress={() => setSelectedBin(null)} style={{ marginTop: 12 }}>
                   Close
                 </Button>
               </>
@@ -290,12 +318,7 @@ export default function MapScreen() {
 function FillBar({ fill }: { fill: number }) {
   return (
     <View style={fillBarStyles.track}>
-      <View
-        style={[
-          fillBarStyles.bar,
-          { width: `${fill}%` as any, backgroundColor: markerColor(fill) },
-        ]}
-      />
+      <View style={[fillBarStyles.bar, { width: `${fill}%` as any, backgroundColor: markerColor(fill) }]} />
     </View>
   );
 }
@@ -323,145 +346,63 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
 
-  // Markers
-  markerOuter: {
-    borderRadius: 20,
-    borderWidth: 2,
-    padding: 2,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 4,
-  },
+  markerOuter: { borderRadius: 20, borderWidth: 2, padding: 2, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 2, elevation: 4 },
   markerInner: { borderRadius: 14, paddingHorizontal: 6, paddingVertical: 3 },
   markerText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 
-  // Route stop badge
-  stopBadge: {
-    backgroundColor: '#2e7d32',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
+  stopBadge: { backgroundColor: '#2e7d32', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   stopBadgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 
-  // Top overlay
-  topOverlay: {
+  // Truck marker
+  truckMarker: { alignItems: 'center' },
+  truckEmoji: { fontSize: 32 },
+  dragHint: { backgroundColor: '#1b5e20ee', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
+  dragHintText: { color: '#fff', fontSize: 10, fontWeight: '600' },
+
+  // Re-routing badge
+  rerouteBadge: {
     position: 'absolute',
-    top: 48,
-    left: 12,
-    right: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  statsRow: { flexDirection: 'row', gap: 8 },
-  statBubble: {
-    backgroundColor: '#ffffffee',
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    top: 110,
+    alignSelf: 'center',
+    left: '25%',
+    right: '25%',
+    backgroundColor: '#2e7d32ee',
+    borderRadius: 20,
     paddingVertical: 6,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#2e7d32',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    gap: 8,
+    justifyContent: 'center',
   },
+  rerouteText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+
+  topOverlay: { position: 'absolute', top: 48, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  statBubble: { backgroundColor: '#ffffffee', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', borderWidth: 1.5, borderColor: '#2e7d32', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 3 },
   statNum: { fontWeight: 'bold', fontSize: 18, color: '#2e7d32' },
   statLbl: { fontSize: 11, color: '#546e7a' },
   logoutBtn: { backgroundColor: '#ffffffee' },
 
-  // Legend
-  legend: {
-    position: 'absolute',
-    bottom: 120,
-    left: 12,
-    backgroundColor: '#ffffffee',
-    borderRadius: 10,
-    padding: 8,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
+  legend: { position: 'absolute', bottom: 120, left: 12, backgroundColor: '#ffffffee', borderRadius: 10, padding: 8, gap: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 3 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendLabel: { fontSize: 11, color: '#37474f' },
 
-  // Route banner
-  routeBanner: {
-    position: 'absolute',
-    bottom: 80,
-    left: 12,
-    right: 12,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 14,
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#a5d6a7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
+  routeBanner: { position: 'absolute', bottom: 80, left: 12, right: 12, backgroundColor: '#e8f5e9', borderRadius: 14, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#a5d6a7', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
   bannerTitle: { fontWeight: '700', color: '#1b5e20', fontSize: 14 },
   bannerSub: { color: '#558b2f', fontSize: 12, marginTop: 2 },
   startBtn: { backgroundColor: '#2e7d32' },
 
-  // FABs
-  fabGroup: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    gap: 10,
-    alignItems: 'flex-end',
-  },
-  fabLocation: { backgroundColor: '#fff' },
+  fabGroup: { position: 'absolute', bottom: 16, right: 16, gap: 10, alignItems: 'flex-end' },
+  fabSmall: { backgroundColor: '#fff' },
   fabRoute: { backgroundColor: '#2e7d32' },
 
-  // Loading overlay
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffffcc',
-  },
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffffcc' },
 
-  // Bin detail modal
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: '#00000040',
-  },
-  binSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  sheetHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#cfd8dc',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000040' },
+  binSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#cfd8dc', alignSelf: 'center', marginBottom: 16 },
   sheetTitle: { fontWeight: '700', color: '#1b5e20', marginBottom: 10 },
   sheetRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
 });
