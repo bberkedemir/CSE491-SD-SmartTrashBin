@@ -35,11 +35,12 @@ export default function SummaryScreen() {
 
   const collectedSet = new Set(collectedIds);
   const skippedSet = new Set(skippedIds);
-  const collectedStops = route.stops.filter((s) => collectedSet.has(s.bin_id));
-  const skippedStops = route.stops.filter((s) => skippedSet.has(s.bin_id));
-  const distanceKm = (route.total_distance_m / 1000).toFixed(1);
-  const durationMin = Math.round(route.total_duration_s / 60);
-  const completionPct = Math.round((collectedStops.length / route.stops.length) * 100);
+  const pickupStops = route.route_sequence.filter((s) => s.type === 'pickup');
+  const collectedStops = pickupStops.filter((s) => collectedSet.has(s.id));
+  const skippedStops = pickupStops.filter((s) => skippedSet.has(s.id));
+  const distanceKm = route.total_distance_km.toFixed(1);
+  const durationMin = Math.round(route.estimated_time_minutes);
+  const completionPct = Math.round((collectedStops.length / pickupStops.length) * 100);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -72,14 +73,14 @@ export default function SummaryScreen() {
               ✓ Collected ({collectedStops.length})
             </Text>
             {collectedStops.map((s) => (
-              <View key={s.bin_id} style={styles.listRow}>
+              <View key={s.id} style={styles.listRow}>
                 <Text variant="bodyMedium" style={{ flex: 1 }}>{s.title}</Text>
                 <Chip
                   compact
                   style={{ backgroundColor: '#e8f5e9' }}
                   textStyle={{ color: '#2e7d32', fontSize: 11 }}
                 >
-                  {s.fill}% → 0%
+                  {s.fill_level}% → 0%
                 </Chip>
               </View>
             ))}
@@ -95,14 +96,14 @@ export default function SummaryScreen() {
               — Skipped ({skippedStops.length})
             </Text>
             {skippedStops.map((s) => (
-              <View key={s.bin_id} style={styles.listRow}>
+              <View key={s.id} style={styles.listRow}>
                 <Text variant="bodyMedium" style={[{ flex: 1 }, styles.skippedText]}>{s.title}</Text>
                 <Chip
                   compact
                   style={{ backgroundColor: '#fff3e0' }}
                   textStyle={{ color: '#e65100', fontSize: 11 }}
                 >
-                  {s.fill}%
+                  {s.fill_level}%
                 </Chip>
               </View>
             ))}

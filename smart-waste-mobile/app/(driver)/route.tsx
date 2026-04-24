@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Alert, Linking, ScrollView, Vibration } from 'react-native';
-import { Text, Button, Card, Chip, ProgressBar, Divider, Banner, IconButton } from 'react-native-paper';
+import { View, StyleSheet, Alert, Linking, ScrollView } from 'react-native';
+import { Text, Button, Card, Chip, ProgressBar, Divider, Banner } from 'react-native-paper';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -9,7 +9,6 @@ import type { RouteResponse, RouteStop } from '../../types';
 
 const PROXIMITY_METERS = 50;
 
-/** Haversine distance in metres between two lat/lng points */
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
   const φ1 = (lat1 * Math.PI) / 180;
@@ -29,9 +28,10 @@ export default function RouteScreen() {
   const params = useLocalSearchParams<{ routeJson?: string }>();
 
   const [route, setRoute] = useState<RouteResponse | null>(null);
+  // pickupStops: only 'pickup' type stops (excludes start/end waypoints)
+  const [pickupStops, setPickupStops] = useState<RouteStop[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [collecting, setCollecting] = useState(false);
-  const [skipping, setSkipping] = useState(false);
   const [collected, setCollected] = useState<Set<number>>(new Set());
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -41,66 +41,56 @@ export default function RouteScreen() {
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
-  // Parse route from navigation params
   useEffect(() => {
     if (params.routeJson) {
       try {
-        setRoute(JSON.parse(params.routeJson));
+        const parsed: RouteResponse = JSON.parse(params.routeJson);
+        const pickups = parsed.route_sequence.filter((s) => s.type === 'pickup');
+        setRoute(parsed);
+        setPickupStops(pickups);
         setCurrentIndex(0);
         setCollected(new Set());
         setSkipped(new Set());
       } catch {
-        // malformed JSON — ignore
+        // malformed JSON
       }
     }
   }, [params.routeJson]);
 
-  // Start live GPS tracking when route is active
   useEffect(() => {
     if (!route) return;
     startLocationTracking();
-    return () => {
-      locationSub.current?.remove();
-    };
+    return () => { locationSub.current?.remove(); };
   }, [route]);
 
-  // Recalculate distance whenever driver moves or stop changes
   useEffect(() => {
-    if (!driverLocation || !route) {
-      setDistanceToStop(null);
-      return;
-    }
-    const stop = route.stops[currentIndex];
+    if (!driverLocation || pickupStops.length === 0) { setDistanceToStop(null); return; }
+    const stop = pickupStops[currentIndex];
     if (!stop) return;
     const dist = haversine(driverLocation.lat, driverLocation.lng, stop.lat, stop.lng);
     setDistanceToStop(dist);
-
-    // Proximity alert — fire once per stop
     if (dist <= PROXIMITY_METERS && !proximityAlertShown) {
       setProximityAlertShown(true);
       setNearbyBanner(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-  }, [driverLocation, currentIndex, route]);
+  }, [driverLocation, currentIndex, pickupStops]);
 
   const startLocationTracking = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
     locationSub.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 5000 },
-      (loc) => {
-        setDriverLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      }
+      (loc) => setDriverLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude })
     );
   };
 
   const advanceToNextStop = useCallback(
     (updatedCollected: Set<number>, updatedSkipped: Set<number>, fromIndex: number) => {
-      const remaining = route!.stops.findIndex(
-        (s, i) => i > fromIndex && !updatedCollected.has(s.bin_id) && !updatedSkipped.has(s.bin_id)
+      const remaining = pickupStops.findIndex(
+        (s, i) => i > fromIndex && !updatedCollected.has(s.id) && !updatedSkipped.has(s.id)
       );
       if (remaining === -1) {
-        // Route complete
         router.replace({
           pathname: '/(driver)/summary',
           params: {
@@ -115,18 +105,18 @@ export default function RouteScreen() {
         setNearbyBanner(false);
       }
     },
-    [route]
+    [route, pickupStops]
   );
 
   const handleCollect = async () => {
-    if (!route) return;
-    const stop = route.stops[currentIndex];
+    const stop = pickupStops[currentIndex];
+    if (!stop) return;
     setCollecting(true);
     try {
-      await collectBin(stop.bin_id);
+      await collectBin(stop.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const next = new Set(collected);
-      next.add(stop.bin_id);
+      next.add(stop.id);
       setCollected(next);
       setNearbyBanner(false);
       advanceToNextStop(next, skipped, currentIndex);
@@ -138,8 +128,8 @@ export default function RouteScreen() {
   };
 
   const handleSkip = () => {
-    if (!route) return;
-    const stop = route.stops[currentIndex];
+    const stop = pickupStops[currentIndex];
+    if (!stop) return;
     Alert.alert(
       'Skip this stop?',
       `"${stop.title}" will be marked as skipped and you'll move to the next bin.`,
@@ -151,7 +141,7 @@ export default function RouteScreen() {
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             const next = new Set(skipped);
-            next.add(stop.bin_id);
+            next.add(stop.id);
             setSkipped(next);
             setNearbyBanner(false);
             advanceToNextStop(collected, next, currentIndex);
@@ -162,12 +152,12 @@ export default function RouteScreen() {
   };
 
   const openNavigation = (s: RouteStop) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
-    Linking.openURL(url);
+    Linking.openURL(
+      `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`
+    );
   };
 
-  // ─── Empty state ───────────────────────────────────────────────────────────
-  if (!route) {
+  if (!route || pickupStops.length === 0) {
     return (
       <View style={styles.empty}>
         <Text variant="titleMedium" style={styles.emptyTitle}>No Active Route</Text>
@@ -181,11 +171,9 @@ export default function RouteScreen() {
     );
   }
 
-  const stop = route.stops[currentIndex];
+  const stop = pickupStops[currentIndex];
   const done = collected.size + skipped.size;
-  const progress = done / route.stops.length;
-  const distanceKm = (route.total_distance_m / 1000).toFixed(1);
-  const durationMin = Math.round(route.total_duration_s / 60);
+  const progress = done / pickupStops.length;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -206,9 +194,9 @@ export default function RouteScreen() {
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>Route Summary</Text>
           <View style={styles.chipRow}>
-            <Chip icon="map-marker-multiple">{route.stops.length} stops</Chip>
-            <Chip icon="road-variant">{distanceKm} km</Chip>
-            <Chip icon="clock-outline">{durationMin} min</Chip>
+            <Chip icon="map-marker-multiple">{pickupStops.length} stops</Chip>
+            <Chip icon="road-variant">{route.total_distance_km.toFixed(1)} km</Chip>
+            <Chip icon="clock-outline">{Math.round(route.estimated_time_minutes)} min</Chip>
           </View>
           <ProgressBar progress={progress} color="#2e7d32" style={styles.progress} />
           <View style={styles.progressLabelRow}>
@@ -216,7 +204,7 @@ export default function RouteScreen() {
               {collected.size} collected · {skipped.size} skipped
             </Text>
             <Text variant="bodySmall" style={styles.progressLabel}>
-              {route.stops.length - done} remaining
+              {pickupStops.length - done} remaining
             </Text>
           </View>
         </Card.Content>
@@ -245,11 +233,11 @@ export default function RouteScreen() {
             <View style={styles.chipRow}>
               <Chip
                 compact
-                style={{ backgroundColor: fillColor(stop.fill) }}
+                style={{ backgroundColor: fillColor(stop.fill_level) }}
                 textStyle={{ color: '#fff' }}
                 icon="trash-can"
               >
-                {stop.fill}% full
+                {stop.fill_level}% full
               </Chip>
               <Chip compact icon="map-marker">
                 {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
@@ -259,20 +247,10 @@ export default function RouteScreen() {
           </Card.Content>
 
           <Card.Actions style={styles.cardActions}>
-            <Button
-              mode="outlined"
-              icon="skip-next"
-              onPress={handleSkip}
-              disabled={collecting}
-              textColor="#e65100"
-            >
+            <Button mode="outlined" icon="skip-next" onPress={handleSkip} disabled={collecting} textColor="#e65100">
               Skip
             </Button>
-            <Button
-              mode="outlined"
-              icon="google-maps"
-              onPress={() => openNavigation(stop)}
-            >
+            <Button mode="outlined" icon="google-maps" onPress={() => openNavigation(stop)}>
               Navigate
             </Button>
             <Button
@@ -280,7 +258,7 @@ export default function RouteScreen() {
               icon="check-circle"
               onPress={handleCollect}
               loading={collecting}
-              disabled={collecting || skipping}
+              disabled={collecting}
             >
               Collected
             </Button>
@@ -305,32 +283,29 @@ export default function RouteScreen() {
 
       {/* All stops list */}
       <Text variant="titleSmall" style={styles.allStopsTitle}>All Stops</Text>
-      {route.stops.map((s, i) => {
-        const isDone = collected.has(s.bin_id);
-        const isSkipped = skipped.has(s.bin_id);
+      {pickupStops.map((s, i) => {
+        const isDone = collected.has(s.id);
+        const isSkipped = skipped.has(s.id);
         const isCurrent = i === currentIndex;
         return (
-          <View key={s.bin_id} style={[styles.stopItem, isCurrent && styles.stopItemCurrent]}>
+          <View key={s.id} style={[styles.stopItem, isCurrent && styles.stopItemCurrent]}>
             <View style={[styles.stopIndex, isDone && styles.stopIndexDone, isSkipped && styles.stopIndexSkipped, isCurrent && styles.stopIndexCurrent]}>
               <Text style={styles.stopIndexText}>
                 {isDone ? '✓' : isSkipped ? '—' : i + 1}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text
-                variant="bodyMedium"
-                style={[isDone && styles.strikethrough, isSkipped && styles.skippedText]}
-              >
+              <Text variant="bodyMedium" style={[isDone && styles.strikethrough, isSkipped && styles.skippedText]}>
                 {s.title}
               </Text>
               {isSkipped && <Text variant="bodySmall" style={styles.skippedLabel}>Skipped</Text>}
             </View>
             <Chip
               compact
-              style={{ backgroundColor: fillColor(s.fill) }}
+              style={{ backgroundColor: fillColor(s.fill_level) }}
               textStyle={{ color: '#fff', fontSize: 11 }}
             >
-              {s.fill}%
+              {s.fill_level}%
             </Chip>
           </View>
         );
@@ -352,16 +327,13 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyTitle: { color: '#37474f', fontWeight: 'bold', marginBottom: 8 },
   emptySubtitle: { color: '#90a4ae', textAlign: 'center' },
-
   banner: { backgroundColor: '#c8e6c9', margin: 0 },
-
   summaryCard: { backgroundColor: '#fff', margin: 12, marginBottom: 8 },
   sectionTitle: { fontWeight: '600', color: '#37474f', marginBottom: 10 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   progress: { height: 8, borderRadius: 4 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressLabel: { color: '#78909c' },
-
   currentCard: { backgroundColor: '#e8f5e9', marginHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: '#a5d6a7' },
   currentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   currentLabel: { color: '#558b2f', fontWeight: 'bold', letterSpacing: 1 },
@@ -369,22 +341,13 @@ const styles = StyleSheet.create({
   distChip: { backgroundColor: '#f5f5f5' },
   stopTitle: { color: '#1b5e20', fontWeight: 'bold', marginBottom: 8 },
   cardActions: { justifyContent: 'flex-end', gap: 6, paddingBottom: 8, flexWrap: 'wrap' },
-
   gpsRow: { paddingHorizontal: 12, marginBottom: 4 },
   gpsActive: { backgroundColor: '#e8f5e9' },
   gpsInactive: { backgroundColor: '#fafafa' },
-
   allStopsTitle: { color: '#546e7a', marginBottom: 8, fontWeight: '600', paddingHorizontal: 12 },
-  stopItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, paddingHorizontal: 12,
-    borderBottomWidth: 1, borderBottomColor: '#eeeeee',
-  },
+  stopItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   stopItemCurrent: { backgroundColor: '#f1f8e9' },
-  stopIndex: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#cfd8dc', justifyContent: 'center', alignItems: 'center',
-  },
+  stopIndex: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#cfd8dc', justifyContent: 'center', alignItems: 'center' },
   stopIndexDone: { backgroundColor: '#2e7d32' },
   stopIndexSkipped: { backgroundColor: '#bdbdbd' },
   stopIndexCurrent: { backgroundColor: '#e65100' },

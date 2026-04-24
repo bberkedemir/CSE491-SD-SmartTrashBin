@@ -68,13 +68,13 @@ export default function MapScreen() {
     setRouteLoading(true);
     try {
       const r = await getOptimizedRoute(lat, lng);
-      if (r.stops.length === 0) {
+      const pickupStops = r.route_sequence.filter((s) => s.type === 'pickup');
+      if (pickupStops.length === 0) {
         Alert.alert('No bins', 'No bins are above the fill threshold right now.');
         return;
       }
       setRoute(r);
-      // Fit map to show all route stops
-      const coords = r.stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+      const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
         animated: true,
@@ -98,8 +98,9 @@ export default function MapScreen() {
     ]);
   };
 
+  // geometry is [[lat, lng], ...] from OSRM via backend
   const routePolyline =
-    route?.geometry?.map(([lng, lat]) => ({ latitude: lat, longitude: lng })) ?? [];
+    route?.route_geometry?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [];
 
   const fullBins = bins.filter((b) => b.fill >= 75);
 
@@ -140,10 +141,10 @@ export default function MapScreen() {
           />
         )}
 
-        {/* Route stop order numbers */}
-        {route?.stops.map((stop, i) => (
+        {/* Route stop order numbers — pickup stops only */}
+        {route?.route_sequence.filter((s) => s.type === 'pickup').map((stop, i) => (
           <Marker
-            key={`stop-${stop.bin_id}`}
+            key={`stop-${stop.id}`}
             coordinate={{ latitude: stop.lat, longitude: stop.lng }}
             anchor={{ x: 0.5, y: 1 }}
           >
@@ -193,9 +194,9 @@ export default function MapScreen() {
       {route && (
         <View style={styles.routeBanner}>
           <View>
-            <Text style={styles.bannerTitle}>Route ready — {route.stops.length} stops</Text>
+            <Text style={styles.bannerTitle}>Route ready — {route.total_stops} stops</Text>
             <Text style={styles.bannerSub}>
-              {(route.total_distance_m / 1000).toFixed(1)} km · {Math.round(route.total_duration_s / 60)} min
+              {route.total_distance_km.toFixed(1)} km · {Math.round(route.estimated_time_minutes)} min
             </Text>
           </View>
           <Button mode="contained" compact onPress={handleStartRoute} style={styles.startBtn}>

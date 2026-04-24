@@ -19,20 +19,22 @@ export interface Bin {
 }
 
 export interface RouteStop {
-  bin_id: number;
+  sequence: number;
+  id: number;           // -1 for start/end waypoints
   title: string;
   lat: number;
   lng: number;
-  fill: number;
-  order: number;
+  fill_level: number;
+  type: 'pickup' | 'start' | 'end' | 'waypoint';
 }
 
 export interface RouteResponse {
-  stops: RouteStop[];
-  total_distance_m: number;
-  total_duration_s: number;
-  geometry: [number, number][];
-  algorithm: string;
+  generated_at: string;
+  total_stops: number;
+  total_distance_km: number;
+  estimated_time_minutes: number;
+  route_sequence: RouteStop[];
+  route_geometry: [number, number][]; // [lat, lng] pairs
 }
 
 export interface CollectionLog {
