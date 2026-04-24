@@ -10,6 +10,41 @@ import { useAuth } from '../../context/AuthContext';
 import ErrorState from '../../components/ErrorState';
 import type { Bin, RouteResponse } from '../../types';
 
+/**
+ * Ported from web UI useRouteOptimization.ts:
+ * Finds the closest point in the remaining geometry to the truck's new position,
+ * slices from there, and prepends the truck's exact location.
+ * No API call — pure client-side geometry update.
+ */
+function sliceGeometryFromTruck(
+  fullGeometry: [number, number][],
+  fromIndex: number,
+  truckLat: number,
+  truckLng: number
+): { polyline: LatLng[]; newIndex: number } {
+  let closestIndex = fromIndex;
+  let minDistSq = Infinity;
+
+  for (let i = fromIndex; i < fullGeometry.length; i++) {
+    const [lat, lng] = fullGeometry[i];
+    const distSq = (lat - truckLat) ** 2 + (lng - truckLng) ** 2;
+    // Sequential penalty: prefer points earlier in the sequence when physically equidistant
+    const penalized = distSq + (i - fromIndex) * 0.00000001;
+    if (penalized < minDistSq) {
+      minDistSq = penalized;
+      closestIndex = i;
+    }
+  }
+
+  const remaining = fullGeometry.slice(closestIndex);
+  const polyline: LatLng[] = [
+    { latitude: truckLat, longitude: truckLng },
+    ...remaining.map(([lat, lng]) => ({ latitude: lat, longitude: lng })),
+  ];
+
+  return { polyline, newIndex: closestIndex };
+}
+
 const DEFAULT_REGION = {
   latitude: 36.892539,
   longitude: 30.663895,
@@ -26,13 +61,17 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [binsError, setBinsError] = useState('');
   const [routeLoading, setRouteLoading] = useState(false);
-  const [rerouteLoading, setRerouteLoading] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [truckPosition, setTruckPosition] = useState<LatLng>({
     latitude: DEFAULT_REGION.latitude,
     longitude: DEFAULT_REGION.longitude,
   });
   const [route, setRoute] = useState<RouteResponse | null>(null);
+  // Full original geometry stored once after optimization; never re-fetched on drag
+  const fullGeometry = useRef<[number, number][]>([]);
+  const geometryIndex = useRef(0);
+  // The polyline currently drawn — updated cheaply on drag without an API call
+  const [displayPolyline, setDisplayPolyline] = useState<LatLng[]>([]);
   const [selectedBin, setSelectedBin] = useState<Bin | null>(null);
 
   useEffect(() => {
@@ -76,41 +115,48 @@ export default function MapScreen() {
     }
   };
 
-  const optimizeFromPosition = async (pos: LatLng, isReroute = false) => {
-    if (isReroute) setRerouteLoading(true);
-    else setRouteLoading(true);
+  const handleGetRoute = async () => {
+    setRouteLoading(true);
     try {
-      const r = await getOptimizedRoute(pos.latitude, pos.longitude);
+      const r = await getOptimizedRoute(truckPosition.latitude, truckPosition.longitude);
       const pickupStops = r.route_sequence.filter((s) => s.type === 'pickup');
       if (pickupStops.length === 0) {
-        if (!isReroute) Alert.alert('No bins', 'No bins are above the fill threshold right now.');
+        Alert.alert('No bins', 'No bins are above the fill threshold right now.');
         return;
       }
+      // Store full geometry for cheap client-side slicing on drag
+      const geo = r.route_geometry as [number, number][];
+      fullGeometry.current = geo;
+      geometryIndex.current = 0;
       setRoute(r);
-      if (!isReroute) {
-        const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
-        mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
-          animated: true,
-        });
-      }
+      setDisplayPolyline(geo.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
+      const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
+        animated: true,
+      });
     } catch {
-      if (!isReroute) Alert.alert('Error', 'Could not compute route. Check your connection.');
+      Alert.alert('Error', 'Could not compute route. Check your connection.');
     } finally {
-      if (isReroute) setRerouteLoading(false);
-      else setRouteLoading(false);
+      setRouteLoading(false);
     }
   };
-
-  const handleGetRoute = () => optimizeFromPosition(truckPosition, false);
 
   const handleTruckDragEnd = (e: { nativeEvent: { coordinate: LatLng } }) => {
     const newPos = e.nativeEvent.coordinate;
     hasDragged.current = true;
     setTruckPosition(newPos);
-    // Auto re-optimize if a route is already shown
-    if (route) {
-      optimizeFromPosition(newPos, true);
+    // If a route is active, slice the stored geometry from the nearest remaining point.
+    // No API call — matches the web UI behaviour exactly.
+    if (route && fullGeometry.current.length > 0) {
+      const { polyline, newIndex } = sliceGeometryFromTruck(
+        fullGeometry.current,
+        geometryIndex.current,
+        newPos.latitude,
+        newPos.longitude
+      );
+      geometryIndex.current = newIndex;
+      setDisplayPolyline(polyline);
     }
   };
 
@@ -125,9 +171,6 @@ export default function MapScreen() {
       { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
   };
-
-  const routePolyline =
-    route?.route_geometry?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [];
 
   const fullBins = bins.filter((b) => b.fill >= 75);
 
@@ -157,10 +200,10 @@ export default function MapScreen() {
           </Marker>
         ))}
 
-        {/* Route polyline */}
-        {routePolyline.length > 0 && (
+        {/* Route polyline — sliced from truck position on drag, no API call */}
+        {displayPolyline.length > 0 && (
           <Polyline
-            coordinates={routePolyline}
+            coordinates={displayPolyline}
             strokeColor="#2e7d32"
             strokeWidth={3}
             lineDashPattern={[1]}
@@ -229,16 +272,8 @@ export default function MapScreen() {
         ))}
       </View>
 
-      {/* Re-routing indicator */}
-      {rerouteLoading && (
-        <View style={styles.rerouteBadge}>
-          <ActivityIndicator size="small" color="#fff" />
-          <Text style={styles.rerouteText}>Re-routing…</Text>
-        </View>
-      )}
-
       {/* Route banner */}
-      {route && !rerouteLoading && (
+      {route && (
         <View style={styles.routeBanner}>
           <View>
             <Text style={styles.bannerTitle}>Route ready — {route.total_stops} stops</Text>
@@ -358,24 +393,6 @@ const styles = StyleSheet.create({
   truckEmoji: { fontSize: 32 },
   dragHint: { backgroundColor: '#1b5e20ee', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
   dragHintText: { color: '#fff', fontSize: 10, fontWeight: '600' },
-
-  // Re-routing badge
-  rerouteBadge: {
-    position: 'absolute',
-    top: 110,
-    alignSelf: 'center',
-    left: '25%',
-    right: '25%',
-    backgroundColor: '#2e7d32ee',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  rerouteText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 
   topOverlay: { position: 'absolute', top: 48, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   statsRow: { flexDirection: 'row', gap: 8 },
