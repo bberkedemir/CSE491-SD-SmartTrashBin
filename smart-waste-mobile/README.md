@@ -62,24 +62,36 @@ Scan the QR code shown in the terminal with **Expo Go** (Android) or the Camera 
 Sign in with your truck driver credentials. Sessions are persisted across app restarts.
 
 ### Map (Home tab)
-- Shows total bin count, bins needing collection (fill ≥ 75%), and average fill level
-- Lists bins above the collection threshold with color-coded fill badges
-  - 🟢 Green — below 50%
-  - 🟡 Yellow — 50–75%
-  - 🟠 Orange — 75–90%
-  - 🔴 Red — above 90%
-- **"Get Optimized Route"** button — uses your current GPS location as the starting point and calls the backend route optimization API
+- Interactive map with color-coded bin markers (tap any marker for details)
+  - Green — below 50% · Yellow — 50–75% · Orange — 75–90% · Red — above 90%
+- Stats overlay shows total bin count and how many need collection
+- Fill level legend in the bottom-left corner
+- **"Get Route"** FAB — calls the backend optimizer using your live GPS position; draws the route polyline and numbered stop badges on the map
+- Route ready banner shows distance, duration, and a **Start** button
+- **Refresh** button reloads bins from the backend
+- **GPS** button re-centers the map on your current location
+- Logout button (top-right)
 
 ### Route (Route tab)
-- Displays the ordered list of stops returned by the optimizer
-- Progress bar tracks how many bins have been collected
-- **Navigate** button — opens the current stop in Google Maps with driving directions
-- **Mark Collected** button — sends `POST /bins/{id}/collect` to the backend, then advances to the next stop
-- Route appears here after tapping "Get Optimized Route" on the Map tab
+- Continuous GPS tracking (every 10 m) with live distance to the current stop
+- **Proximity alert** — banner + haptic vibration when within 50 m of the next bin
+- **Navigate** — opens current stop in Google Maps with driving directions
+- **Mark Collected** — calls the backend, advances to next stop automatically
+- **Skip** — skips an inaccessible bin with a confirmation dialog; skipped bins are shown in the summary
+- Progress bar and stop list with colour-coded status (current / collected / skipped)
+- When all stops are resolved, navigates automatically to the Summary screen
+
+### Route Summary
+- Appears automatically when the last stop is resolved
+- Shows collected vs. skipped bins, fill-level changes, distance, duration, and completion percentage
+- Warning if any bins were skipped
+- Links back to Map and Logs
 
 ### Logs (Logs tab)
-- Shows a paginated, pull-to-refresh list of all collection events
-- Each entry shows the bin ID, action type, fill level before and after collection, and timestamp
+- Pull-to-refresh list of all collection events with human-readable timestamps (e.g. "3h ago", "Yesterday")
+- Fill before → after with colour-coded chips and delta label
+- Infinite scroll — loads 20 entries at a time
+- Retry button on connection error
 
 ## Project Structure
 
@@ -94,8 +106,12 @@ smart-waste-mobile/
 │   └── (driver)/
 │       ├── _layout.tsx      # Tab bar + auth guard
 │       ├── index.tsx        # Map / home screen
-│       ├── route.tsx        # Active route screen
-│       └── logs.tsx         # Collection logs
+│       ├── route.tsx        # Active route + live GPS tracking
+│       ├── summary.tsx      # Route completion summary
+│       └── logs.tsx         # Collection logs with pagination
+├── components/
+│   ├── EmptyState.tsx       # Reusable empty state with icon + CTA
+│   └── ErrorState.tsx       # Reusable error state with retry button
 ├── context/
 │   └── AuthContext.tsx      # JWT auth state, session persistence
 ├── services/

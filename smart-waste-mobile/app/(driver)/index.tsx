@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
-import MapView, { Marker, Polyline, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Text, FAB, Card, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
+import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { getBins, getOptimizedRoute } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import ErrorState from '../../components/ErrorState';
 import type { Bin, RouteResponse } from '../../types';
 
 const DEFAULT_REGION = {
@@ -21,6 +22,7 @@ export default function MapScreen() {
 
   const [bins, setBins] = useState<Bin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [binsError, setBinsError] = useState('');
   const [routeLoading, setRouteLoading] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [route, setRoute] = useState<RouteResponse | null>(null);
@@ -48,11 +50,13 @@ export default function MapScreen() {
   };
 
   const loadBins = async () => {
+    setLoading(true);
+    setBinsError('');
     try {
       const data = await getBins();
       setBins(data);
     } catch {
-      Alert.alert('Error', 'Failed to load bins.');
+      setBinsError('Could not load bins. Check your connection.');
     } finally {
       setLoading(false);
     }
@@ -208,8 +212,22 @@ export default function MapScreen() {
         </View>
       )}
 
+      {/* Error overlay */}
+      {!loading && binsError ? (
+        <View style={styles.loadingOverlay}>
+          <ErrorState message={binsError} onRetry={loadBins} />
+        </View>
+      ) : null}
+
       {/* FABs */}
       <View style={styles.fabGroup}>
+        <FAB
+          icon="refresh"
+          size="small"
+          style={styles.fabLocation}
+          onPress={loadBins}
+          disabled={loading}
+        />
         <FAB
           icon="crosshairs-gps"
           size="small"
