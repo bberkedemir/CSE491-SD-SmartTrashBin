@@ -40,6 +40,7 @@ export default function RouteScreen() {
   const [nearbyBanner, setNearbyBanner] = useState(false);
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
+  const startedAtRef = useRef<number | null>(null);
 
   // Sync from context whenever a new route is set from the Map tab
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function RouteScreen() {
     setCollected(new Set());
     setSkipped(new Set());
     setNearbyBanner(false);
+    startedAtRef.current = Date.now();
   }, [activeRoute]);
 
   useEffect(() => {
@@ -92,6 +94,8 @@ export default function RouteScreen() {
           params: {
             collectedJson: JSON.stringify([...updatedCollected]),
             skippedJson: JSON.stringify([...updatedSkipped]),
+            startedAt: String(startedAtRef.current ?? Date.now()),
+            completedAt: String(Date.now()),
           },
         });
       } else {

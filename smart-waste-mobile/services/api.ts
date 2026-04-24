@@ -72,4 +72,17 @@ export const getLogs = async (skip = 0, limit = 50): Promise<CollectionLog[]> =>
   return data.logs;
 };
 
+export interface RouteCompletedPayload {
+  stops_total: number;
+  collected: number;
+  skipped: number;
+  distance_km: number;
+  estimated_minutes: number;
+  elapsed_seconds: number;
+}
+
+export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise<void> => {
+  await api.post('/api/v1/logs/route-completed', payload);
+};
+
 export default api;

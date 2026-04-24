@@ -120,9 +120,19 @@ def update_bin(bin_id: int, bin_data: BinUpdate, db: Session = Depends(get_db), 
 @router.post("/{bin_id}/collect", response_model=Bin)
 def collect_bin(bin_id: int, db: Session = Depends(get_db)):
     """Simulate collecting waste from a bin, resetting its fill level to 0"""
-    bin = bin_crud.update(db, bin_id, BinUpdate(fill=0))
-    if not bin:
+    existing = bin_crud.get(db, bin_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Bin not found")
+    fill_before = existing.fill
+    bin = bin_crud.update(db, bin_id, BinUpdate(fill=0))
+    if fill_before != 0:
+        LogCRUD.create_log(db, LogCreate(
+            action="collected",
+            bin_id=bin.id,
+            fill_before=fill_before,
+            fill_after=0,
+            notes=f"Collected '{bin.title}' — fill {fill_before}% → 0%"
+        ))
     return bin
 
 

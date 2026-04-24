@@ -55,7 +55,7 @@ const DEFAULT_REGION = {
 
 export default function MapScreen() {
   const { user, logout } = useAuth();
-  const { setActiveRoute } = useRoute();
+  const { activeRoute, setActiveRoute } = useRoute();
   const mapRef = useRef<MapView>(null);
   const hasDragged = useRef(false);
 
@@ -80,6 +80,16 @@ export default function MapScreen() {
     loadBins();
     requestLocation();
   }, []);
+
+  // Clear local route state when the active route is cleared (e.g. after summary)
+  useEffect(() => {
+    if (activeRoute === null) {
+      setRoute(null);
+      setDisplayPolyline([]);
+      fullGeometry.current = [];
+      geometryIndex.current = 0;
+    }
+  }, [activeRoute]);
 
   const requestLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();

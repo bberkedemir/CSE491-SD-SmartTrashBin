@@ -39,10 +39,10 @@ export interface RouteResponse {
 
 export interface CollectionLog {
   id: number;
-  bin_id: number;
+  bin_id: number | null;
   action: string;
-  fill_before: number;
-  fill_after: number;
+  fill_before: number | null;
+  fill_after: number | null;
   notes: string | null;
   created_at: string;
 }

@@ -1,13 +1,22 @@
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, Chip, Divider } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useRoute } from '../../context/RouteContext';
+import { logRouteCompleted } from '../../services/api';
 
 export default function SummaryScreen() {
-  const { activeRoute: route } = useRoute();
+  const { activeRoute: route, setActiveRoute } = useRoute();
+
+  const finish = (target: '/(driver)' | '/(driver)/logs') => {
+    setActiveRoute(null);
+    router.replace(target);
+  };
   const params = useLocalSearchParams<{
     collectedJson?: string;
     skippedJson?: string;
+    startedAt?: string;
+    completedAt?: string;
   }>();
 
   let collectedIds: number[] = [];
@@ -24,7 +33,7 @@ export default function SummaryScreen() {
     return (
       <View style={styles.empty}>
         <Text variant="titleMedium">No summary available.</Text>
-        <Button mode="contained" onPress={() => router.replace('/(driver)')} style={{ marginTop: 16 }}>
+        <Button mode="contained" onPress={() => finish('/(driver)')} style={{ marginTop: 16 }}>
           Back to Map
         </Button>
       </View>
@@ -37,8 +46,43 @@ export default function SummaryScreen() {
   const collectedStops = pickupStops.filter((s) => collectedSet.has(s.id));
   const skippedStops = pickupStops.filter((s) => skippedSet.has(s.id));
   const distanceKm = route.total_distance_km.toFixed(1);
-  const durationMin = Math.round(route.estimated_time_minutes);
+  const estDurationMin = Math.round(route.estimated_time_minutes);
   const completionPct = Math.round((collectedStops.length / pickupStops.length) * 100);
+
+  const startedAt = params.startedAt ? Number(params.startedAt) : null;
+  const completedAt = params.completedAt ? Number(params.completedAt) : null;
+  const elapsedMs = startedAt && completedAt ? completedAt - startedAt : null;
+  const actualDurationLabel = elapsedMs !== null ? formatDuration(elapsedMs) : '—';
+  const avgSecPerStop =
+    elapsedMs !== null && collectedStops.length + skippedStops.length > 0
+      ? Math.round(elapsedMs / 1000 / (collectedStops.length + skippedStops.length))
+      : null;
+  const avgPerStopLabel = avgSecPerStop !== null ? formatDuration(avgSecPerStop * 1000) : '—';
+  const totalWastePct = collectedStops.reduce((sum, s) => sum + s.fill_level, 0);
+  const vsEstimate =
+    elapsedMs !== null
+      ? Math.round(elapsedMs / 1000 / 60) - estDurationMin
+      : null;
+  const timeFmt = (ms: number) =>
+    new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Fire-and-forget: record this trip in the collection logs exactly once per mount
+  const postedRef = useRef(false);
+  useEffect(() => {
+    if (postedRef.current) return;
+    if (collectedStops.length + skippedStops.length === 0) return;
+    postedRef.current = true;
+    logRouteCompleted({
+      stops_total: pickupStops.length,
+      collected: collectedStops.length,
+      skipped: skippedStops.length,
+      distance_km: route.total_distance_km,
+      estimated_minutes: estDurationMin,
+      elapsed_seconds: elapsedMs !== null ? Math.round(elapsedMs / 1000) : 0,
+    }).catch(() => {
+      // non-fatal — the trip still shows on-screen
+    });
+  }, []);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -59,9 +103,42 @@ export default function SummaryScreen() {
       </View>
 
       <View style={styles.statsRow}>
-        <StatCard value={`${distanceKm} km`} label="Distance" color="#37474f" />
-        <StatCard value={`${durationMin} min`} label="Est. Time" color="#37474f" />
+        <StatCard value={actualDurationLabel} label="Actual Time" color="#6a1b9a" />
+        <StatCard value={avgPerStopLabel} label="Avg / Stop" color="#37474f" />
       </View>
+
+      <View style={styles.statsRow}>
+        <StatCard value={`${distanceKm} km`} label="Distance" color="#37474f" />
+        <StatCard value={`${estDurationMin} min`} label="Est. Time" color="#37474f" />
+      </View>
+
+      {/* Timing detail card */}
+      {startedAt && completedAt && (
+        <Card style={styles.listCard}>
+          <Card.Content>
+            <Text variant="titleSmall" style={[styles.listTitle, { color: '#37474f' }]}>
+              ⏱ Timing
+            </Text>
+            <DetailRow label="Started" value={timeFmt(startedAt)} />
+            <DetailRow label="Completed" value={timeFmt(completedAt)} />
+            <DetailRow label="Total time" value={actualDurationLabel} />
+            {vsEstimate !== null && (
+              <DetailRow
+                label="vs. estimate"
+                value={
+                  vsEstimate === 0
+                    ? 'on time'
+                    : vsEstimate > 0
+                    ? `+${vsEstimate} min over`
+                    : `${Math.abs(vsEstimate)} min under`
+                }
+                valueColor={vsEstimate > 0 ? '#e65100' : vsEstimate < 0 ? '#2e7d32' : '#37474f'}
+              />
+            )}
+            <DetailRow label="Total waste collected" value={`${totalWastePct}% (combined fill)`} />
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Collected bins */}
       {collectedStops.length > 0 && (
@@ -117,7 +194,7 @@ export default function SummaryScreen() {
       <Button
         mode="contained"
         icon="map"
-        onPress={() => router.replace('/(driver)')}
+        onPress={() => finish('/(driver)')}
         style={styles.doneBtn}
         contentStyle={{ paddingVertical: 6 }}
       >
@@ -127,12 +204,39 @@ export default function SummaryScreen() {
       <Button
         mode="outlined"
         icon="clipboard-list"
-        onPress={() => router.replace('/(driver)/logs')}
+        onPress={() => finish('/(driver)/logs')}
         style={styles.logsBtn}
       >
         View Collection Logs
       </Button>
     </ScrollView>
+  );
+}
+
+function formatDuration(ms: number): string {
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function DetailRow({
+  label,
+  value,
+  valueColor = '#37474f',
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <View style={styles.detailRow}>
+      <Text variant="bodyMedium" style={styles.detailLabel}>{label}</Text>
+      <Text variant="bodyMedium" style={[styles.detailValue, { color: valueColor }]}>{value}</Text>
+    </View>
   );
 }
 
@@ -169,6 +273,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f5f5f5',
   },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f5f5f5',
+  },
+  detailLabel: { color: '#78909c' },
+  detailValue: { fontWeight: '600' },
   skippedText: { color: '#bdbdbd' },
   skippedNote: { color: '#e65100', marginTop: 10, fontStyle: 'italic' },
 
