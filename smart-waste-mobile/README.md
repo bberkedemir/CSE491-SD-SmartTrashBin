@@ -43,6 +43,7 @@ ifconfig | grep "inet "
 
 ```bash
 cd ../backend
+pip install -r requirements.txt   # first time only
 uvicorn app.main:app --host 0.0.0.0 --reload
 ```
 
