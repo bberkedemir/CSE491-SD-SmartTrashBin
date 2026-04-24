@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { RouteProvider } from '../../context/RouteContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
@@ -20,6 +21,7 @@ export default function DriverLayout() {
   }
 
   return (
+    <RouteProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
@@ -68,6 +70,7 @@ export default function DriverLayout() {
         }}
       />
     </Tabs>
+    </RouteProvider>
   );
 }
 

@@ -1,21 +1,19 @@
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, Chip, Divider } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
-import type { RouteResponse } from '../../types';
+import { useRoute } from '../../context/RouteContext';
 
 export default function SummaryScreen() {
+  const { activeRoute: route } = useRoute();
   const params = useLocalSearchParams<{
-    routeJson?: string;
     collectedJson?: string;
     skippedJson?: string;
   }>();
 
-  let route: RouteResponse | null = null;
   let collectedIds: number[] = [];
   let skippedIds: number[] = [];
 
   try {
-    if (params.routeJson) route = JSON.parse(params.routeJson);
     if (params.collectedJson) collectedIds = JSON.parse(params.collectedJson);
     if (params.skippedJson) skippedIds = JSON.parse(params.skippedJson);
   } catch {

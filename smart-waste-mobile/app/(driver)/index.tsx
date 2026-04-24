@@ -7,6 +7,7 @@ import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-na
 import { router } from 'expo-router';
 import { getBins, getOptimizedRoute } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useRoute } from '../../context/RouteContext';
 import ErrorState from '../../components/ErrorState';
 import type { Bin, RouteResponse } from '../../types';
 
@@ -54,6 +55,7 @@ const DEFAULT_REGION = {
 
 export default function MapScreen() {
   const { user, logout } = useAuth();
+  const { setActiveRoute } = useRoute();
   const mapRef = useRef<MapView>(null);
   const hasDragged = useRef(false);
 
@@ -129,6 +131,7 @@ export default function MapScreen() {
       fullGeometry.current = geo;
       geometryIndex.current = 0;
       setRoute(r);
+      setActiveRoute(r);  // share with Route tab via context
       setDisplayPolyline(geo.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
       const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
       mapRef.current?.fitToCoordinates(coords, {
@@ -161,8 +164,7 @@ export default function MapScreen() {
   };
 
   const handleStartRoute = () => {
-    if (!route) return;
-    router.push({ pathname: '/(driver)/route', params: { routeJson: JSON.stringify(route) } });
+    router.push('/(driver)/route');
   };
 
   const handleLogout = () => {

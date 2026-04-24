@@ -3,8 +3,9 @@ import { View, StyleSheet, Alert, Linking, ScrollView } from 'react-native';
 import { Text, Button, Card, Chip, ProgressBar, Divider, Banner } from 'react-native-paper';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams, router } from 'expo-router';
+import { router } from 'expo-router';
 import { collectBin } from '../../services/api';
+import { useRoute } from '../../context/RouteContext';
 import type { RouteResponse, RouteStop } from '../../types';
 
 const PROXIMITY_METERS = 50;
@@ -25,10 +26,9 @@ function formatDistance(m: number): string {
 }
 
 export default function RouteScreen() {
-  const params = useLocalSearchParams<{ routeJson?: string }>();
+  const { activeRoute } = useRoute();
 
   const [route, setRoute] = useState<RouteResponse | null>(null);
-  // pickupStops: only 'pickup' type stops (excludes start/end waypoints)
   const [pickupStops, setPickupStops] = useState<RouteStop[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [collecting, setCollecting] = useState(false);
@@ -41,21 +41,17 @@ export default function RouteScreen() {
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
+  // Sync from context whenever a new route is set from the Map tab
   useEffect(() => {
-    if (params.routeJson) {
-      try {
-        const parsed: RouteResponse = JSON.parse(params.routeJson);
-        const pickups = parsed.route_sequence.filter((s) => s.type === 'pickup');
-        setRoute(parsed);
-        setPickupStops(pickups);
-        setCurrentIndex(0);
-        setCollected(new Set());
-        setSkipped(new Set());
-      } catch {
-        // malformed JSON
-      }
-    }
-  }, [params.routeJson]);
+    if (!activeRoute) return;
+    const pickups = activeRoute.route_sequence.filter((s) => s.type === 'pickup');
+    setRoute(activeRoute);
+    setPickupStops(pickups);
+    setCurrentIndex(0);
+    setCollected(new Set());
+    setSkipped(new Set());
+    setNearbyBanner(false);
+  }, [activeRoute]);
 
   useEffect(() => {
     if (!route) return;
@@ -94,7 +90,6 @@ export default function RouteScreen() {
         router.replace({
           pathname: '/(driver)/summary',
           params: {
-            routeJson: JSON.stringify(route),
             collectedJson: JSON.stringify([...updatedCollected]),
             skippedJson: JSON.stringify([...updatedSkipped]),
           },
