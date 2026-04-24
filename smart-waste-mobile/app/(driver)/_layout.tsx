@@ -60,6 +60,13 @@ export default function DriverLayout() {
           headerTitle: 'Collection Logs',
         }}
       />
+      <Tabs.Screen
+        name="summary"
+        options={{
+          href: null, // hidden from tab bar — navigated to programmatically
+          headerTitle: 'Route Summary',
+        }}
+      />
     </Tabs>
   );
 }

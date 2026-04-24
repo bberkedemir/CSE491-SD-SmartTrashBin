@@ -1,35 +1,178 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, Linking, ScrollView } from 'react-native';
-import { Text, Button, Card, Chip, ProgressBar, Divider } from 'react-native-paper';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, Alert, Linking, ScrollView, Vibration } from 'react-native';
+import { Text, Button, Card, Chip, ProgressBar, Divider, Banner, IconButton } from 'react-native-paper';
+import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, router } from 'expo-router';
 import { collectBin } from '../../services/api';
 import type { RouteResponse, RouteStop } from '../../types';
 
+const PROXIMITY_METERS = 50;
+
+/** Haversine distance in metres between two lat/lng points */
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(m: number): string {
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
 export default function RouteScreen() {
   const params = useLocalSearchParams<{ routeJson?: string }>();
+
   const [route, setRoute] = useState<RouteResponse | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [collecting, setCollecting] = useState(false);
+  const [skipping, setSkipping] = useState(false);
   const [collected, setCollected] = useState<Set<number>>(new Set());
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [distanceToStop, setDistanceToStop] = useState<number | null>(null);
+  const [proximityAlertShown, setProximityAlertShown] = useState(false);
+  const [nearbyBanner, setNearbyBanner] = useState(false);
 
+  const locationSub = useRef<Location.LocationSubscription | null>(null);
+
+  // Parse route from navigation params
   useEffect(() => {
     if (params.routeJson) {
       try {
         setRoute(JSON.parse(params.routeJson));
         setCurrentIndex(0);
         setCollected(new Set());
+        setSkipped(new Set());
       } catch {
-        // invalid json
+        // malformed JSON — ignore
       }
     }
   }, [params.routeJson]);
 
+  // Start live GPS tracking when route is active
+  useEffect(() => {
+    if (!route) return;
+    startLocationTracking();
+    return () => {
+      locationSub.current?.remove();
+    };
+  }, [route]);
+
+  // Recalculate distance whenever driver moves or stop changes
+  useEffect(() => {
+    if (!driverLocation || !route) {
+      setDistanceToStop(null);
+      return;
+    }
+    const stop = route.stops[currentIndex];
+    if (!stop) return;
+    const dist = haversine(driverLocation.lat, driverLocation.lng, stop.lat, stop.lng);
+    setDistanceToStop(dist);
+
+    // Proximity alert — fire once per stop
+    if (dist <= PROXIMITY_METERS && !proximityAlertShown) {
+      setProximityAlertShown(true);
+      setNearbyBanner(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+  }, [driverLocation, currentIndex, route]);
+
+  const startLocationTracking = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+    locationSub.current = await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 5000 },
+      (loc) => {
+        setDriverLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      }
+    );
+  };
+
+  const advanceToNextStop = useCallback(
+    (updatedCollected: Set<number>, updatedSkipped: Set<number>, fromIndex: number) => {
+      const remaining = route!.stops.findIndex(
+        (s, i) => i > fromIndex && !updatedCollected.has(s.bin_id) && !updatedSkipped.has(s.bin_id)
+      );
+      if (remaining === -1) {
+        // Route complete
+        router.replace({
+          pathname: '/(driver)/summary',
+          params: {
+            routeJson: JSON.stringify(route),
+            collectedJson: JSON.stringify([...updatedCollected]),
+            skippedJson: JSON.stringify([...updatedSkipped]),
+          },
+        });
+      } else {
+        setCurrentIndex(remaining);
+        setProximityAlertShown(false);
+        setNearbyBanner(false);
+      }
+    },
+    [route]
+  );
+
+  const handleCollect = async () => {
+    if (!route) return;
+    const stop = route.stops[currentIndex];
+    setCollecting(true);
+    try {
+      await collectBin(stop.bin_id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const next = new Set(collected);
+      next.add(stop.bin_id);
+      setCollected(next);
+      setNearbyBanner(false);
+      advanceToNextStop(next, skipped, currentIndex);
+    } catch {
+      Alert.alert('Error', 'Failed to mark bin as collected. Try again.');
+    } finally {
+      setCollecting(false);
+    }
+  };
+
+  const handleSkip = () => {
+    if (!route) return;
+    const stop = route.stops[currentIndex];
+    Alert.alert(
+      'Skip this stop?',
+      `"${stop.title}" will be marked as skipped and you'll move to the next bin.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            const next = new Set(skipped);
+            next.add(stop.bin_id);
+            setSkipped(next);
+            setNearbyBanner(false);
+            advanceToNextStop(collected, next, currentIndex);
+          },
+        },
+      ]
+    );
+  };
+
+  const openNavigation = (s: RouteStop) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+    Linking.openURL(url);
+  };
+
+  // ─── Empty state ───────────────────────────────────────────────────────────
   if (!route) {
     return (
       <View style={styles.empty}>
         <Text variant="titleMedium" style={styles.emptyTitle}>No Active Route</Text>
         <Text variant="bodyMedium" style={styles.emptySubtitle}>
-          Go to the Map tab and tap "Get Optimized Route" to start.
+          Go to the Map tab and tap "Get Route" to start.
         </Text>
         <Button mode="contained" onPress={() => router.push('/(driver)')} style={{ marginTop: 24 }}>
           Go to Map
@@ -39,73 +182,92 @@ export default function RouteScreen() {
   }
 
   const stop = route.stops[currentIndex];
-  const progress = collected.size / route.stops.length;
+  const done = collected.size + skipped.size;
+  const progress = done / route.stops.length;
   const distanceKm = (route.total_distance_m / 1000).toFixed(1);
   const durationMin = Math.round(route.total_duration_s / 60);
 
-  const openNavigation = (s: RouteStop) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
-    Linking.openURL(url);
-  };
-
-  const handleCollect = async () => {
-    if (!stop) return;
-    setCollecting(true);
-    try {
-      await collectBin(stop.bin_id);
-      const next = new Set(collected);
-      next.add(stop.bin_id);
-      setCollected(next);
-      if (currentIndex + 1 < route.stops.length) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        Alert.alert('Route Complete!', 'All bins have been collected.', [
-          { text: 'Done', onPress: () => router.push('/(driver)') },
-        ]);
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to mark bin as collected. Try again.');
-    } finally {
-      setCollecting(false);
-    }
-  };
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Route summary */}
+      {/* Proximity alert banner */}
+      <Banner
+        visible={nearbyBanner}
+        icon="map-marker-check"
+        actions={[{ label: 'Dismiss', onPress: () => setNearbyBanner(false) }]}
+        style={styles.banner}
+      >
+        <Text style={{ color: '#1b5e20', fontWeight: '600' }}>
+          You are within {PROXIMITY_METERS} m of "{stop?.title}". Ready to collect!
+        </Text>
+      </Banner>
+
+      {/* Route summary card */}
       <Card style={styles.summaryCard}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.summaryTitle}>Route Summary</Text>
-          <View style={styles.summaryRow}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>Route Summary</Text>
+          <View style={styles.chipRow}>
             <Chip icon="map-marker-multiple">{route.stops.length} stops</Chip>
             <Chip icon="road-variant">{distanceKm} km</Chip>
             <Chip icon="clock-outline">{durationMin} min</Chip>
           </View>
           <ProgressBar progress={progress} color="#2e7d32" style={styles.progress} />
-          <Text variant="bodySmall" style={styles.progressLabel}>
-            {collected.size} of {route.stops.length} collected
-          </Text>
+          <View style={styles.progressLabelRow}>
+            <Text variant="bodySmall" style={styles.progressLabel}>
+              {collected.size} collected · {skipped.size} skipped
+            </Text>
+            <Text variant="bodySmall" style={styles.progressLabel}>
+              {route.stops.length - done} remaining
+            </Text>
+          </View>
         </Card.Content>
       </Card>
 
-      {/* Current stop */}
+      {/* Current stop card */}
       {stop && (
         <Card style={styles.currentCard}>
           <Card.Content>
-            <Text variant="labelSmall" style={styles.currentLabel}>CURRENT STOP</Text>
+            <View style={styles.currentHeader}>
+              <Text variant="labelSmall" style={styles.currentLabel}>CURRENT STOP</Text>
+              {distanceToStop !== null && (
+                <Chip
+                  compact
+                  icon={distanceToStop <= PROXIMITY_METERS ? 'map-marker-check' : 'map-marker-distance'}
+                  style={distanceToStop <= PROXIMITY_METERS ? styles.nearChip : styles.distChip}
+                  textStyle={{ fontSize: 12 }}
+                >
+                  {distanceToStop <= PROXIMITY_METERS ? 'Arrived' : formatDistance(distanceToStop)}
+                </Chip>
+              )}
+            </View>
+
             <Text variant="headlineSmall" style={styles.stopTitle}>{stop.title}</Text>
-            <View style={styles.stopRow}>
+
+            <View style={styles.chipRow}>
               <Chip
                 compact
                 style={{ backgroundColor: fillColor(stop.fill) }}
                 textStyle={{ color: '#fff' }}
+                icon="trash-can"
               >
                 {stop.fill}% full
               </Chip>
-              <Chip compact icon="map-marker">{stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}</Chip>
+              <Chip compact icon="map-marker">
+                {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
+              </Chip>
+              <Chip compact icon="counter">Stop {currentIndex + 1}</Chip>
             </View>
           </Card.Content>
+
           <Card.Actions style={styles.cardActions}>
+            <Button
+              mode="outlined"
+              icon="skip-next"
+              onPress={handleSkip}
+              disabled={collecting}
+              textColor="#e65100"
+            >
+              Skip
+            </Button>
             <Button
               mode="outlined"
               icon="google-maps"
@@ -118,48 +280,61 @@ export default function RouteScreen() {
               icon="check-circle"
               onPress={handleCollect}
               loading={collecting}
-              disabled={collecting}
+              disabled={collecting || skipping}
             >
-              Mark Collected
+              Collected
             </Button>
           </Card.Actions>
         </Card>
       )}
 
+      {/* GPS status */}
+      <View style={styles.gpsRow}>
+        <Chip
+          compact
+          icon={driverLocation ? 'crosshairs-gps' : 'crosshairs'}
+          style={driverLocation ? styles.gpsActive : styles.gpsInactive}
+        >
+          {driverLocation
+            ? `GPS: ${driverLocation.lat.toFixed(4)}, ${driverLocation.lng.toFixed(4)}`
+            : 'Acquiring GPS…'}
+        </Chip>
+      </View>
+
       <Divider style={{ marginVertical: 16 }} />
 
       {/* All stops list */}
       <Text variant="titleSmall" style={styles.allStopsTitle}>All Stops</Text>
-      {route.stops.map((s, i) => (
-        <View key={s.bin_id} style={styles.stopItem}>
-          <View style={styles.stopIndex}>
-            <Text
-              style={[
-                styles.stopIndexText,
-                collected.has(s.bin_id) && styles.stopIndexDone,
-                i === currentIndex && styles.stopIndexCurrent,
-              ]}
+      {route.stops.map((s, i) => {
+        const isDone = collected.has(s.bin_id);
+        const isSkipped = skipped.has(s.bin_id);
+        const isCurrent = i === currentIndex;
+        return (
+          <View key={s.bin_id} style={[styles.stopItem, isCurrent && styles.stopItemCurrent]}>
+            <View style={[styles.stopIndex, isDone && styles.stopIndexDone, isSkipped && styles.stopIndexSkipped, isCurrent && styles.stopIndexCurrent]}>
+              <Text style={styles.stopIndexText}>
+                {isDone ? '✓' : isSkipped ? '—' : i + 1}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                variant="bodyMedium"
+                style={[isDone && styles.strikethrough, isSkipped && styles.skippedText]}
+              >
+                {s.title}
+              </Text>
+              {isSkipped && <Text variant="bodySmall" style={styles.skippedLabel}>Skipped</Text>}
+            </View>
+            <Chip
+              compact
+              style={{ backgroundColor: fillColor(s.fill) }}
+              textStyle={{ color: '#fff', fontSize: 11 }}
             >
-              {collected.has(s.bin_id) ? '✓' : i + 1}
-            </Text>
+              {s.fill}%
+            </Chip>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              variant="bodyMedium"
-              style={collected.has(s.bin_id) ? styles.strikethrough : undefined}
-            >
-              {s.title}
-            </Text>
-          </View>
-          <Chip
-            compact
-            style={{ backgroundColor: fillColor(s.fill) }}
-            textStyle={{ color: '#fff', fontSize: 11 }}
-          >
-            {s.fill}%
-          </Chip>
-        </View>
-      ))}
+        );
+      })}
     </ScrollView>
   );
 }
@@ -173,25 +348,48 @@ function fillColor(fill: number) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { paddingBottom: 48 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyTitle: { color: '#37474f', fontWeight: 'bold', marginBottom: 8 },
   emptySubtitle: { color: '#90a4ae', textAlign: 'center' },
-  summaryCard: { backgroundColor: '#fff', marginBottom: 12 },
-  summaryTitle: { fontWeight: '600', color: '#37474f', marginBottom: 10 },
-  summaryRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
+
+  banner: { backgroundColor: '#c8e6c9', margin: 0 },
+
+  summaryCard: { backgroundColor: '#fff', margin: 12, marginBottom: 8 },
+  sectionTitle: { fontWeight: '600', color: '#37474f', marginBottom: 10 },
+  chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   progress: { height: 8, borderRadius: 4 },
-  progressLabel: { color: '#78909c', marginTop: 6, textAlign: 'right' },
-  currentCard: { backgroundColor: '#e8f5e9', marginBottom: 12, borderWidth: 1, borderColor: '#a5d6a7' },
-  currentLabel: { color: '#558b2f', fontWeight: 'bold', marginBottom: 4, letterSpacing: 1 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  progressLabel: { color: '#78909c' },
+
+  currentCard: { backgroundColor: '#e8f5e9', marginHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: '#a5d6a7' },
+  currentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  currentLabel: { color: '#558b2f', fontWeight: 'bold', letterSpacing: 1 },
+  nearChip: { backgroundColor: '#2e7d32' },
+  distChip: { backgroundColor: '#f5f5f5' },
   stopTitle: { color: '#1b5e20', fontWeight: 'bold', marginBottom: 8 },
-  stopRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  cardActions: { justifyContent: 'flex-end', gap: 8, paddingBottom: 8 },
-  allStopsTitle: { color: '#546e7a', marginBottom: 8, fontWeight: '600' },
-  stopItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
-  stopIndex: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#cfd8dc', justifyContent: 'center', alignItems: 'center' },
-  stopIndexText: { fontWeight: 'bold', fontSize: 13, color: '#37474f' },
-  stopIndexDone: { color: '#2e7d32' },
-  stopIndexCurrent: { color: '#e65100' },
+  cardActions: { justifyContent: 'flex-end', gap: 6, paddingBottom: 8, flexWrap: 'wrap' },
+
+  gpsRow: { paddingHorizontal: 12, marginBottom: 4 },
+  gpsActive: { backgroundColor: '#e8f5e9' },
+  gpsInactive: { backgroundColor: '#fafafa' },
+
+  allStopsTitle: { color: '#546e7a', marginBottom: 8, fontWeight: '600', paddingHorizontal: 12 },
+  stopItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderBottomWidth: 1, borderBottomColor: '#eeeeee',
+  },
+  stopItemCurrent: { backgroundColor: '#f1f8e9' },
+  stopIndex: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#cfd8dc', justifyContent: 'center', alignItems: 'center',
+  },
+  stopIndexDone: { backgroundColor: '#2e7d32' },
+  stopIndexSkipped: { backgroundColor: '#bdbdbd' },
+  stopIndexCurrent: { backgroundColor: '#e65100' },
+  stopIndexText: { fontWeight: 'bold', fontSize: 13, color: '#fff' },
   strikethrough: { textDecorationLine: 'line-through', color: '#bdbdbd' },
+  skippedText: { color: '#bdbdbd' },
+  skippedLabel: { color: '#bdbdbd', fontSize: 11, marginTop: 1 },
 });
