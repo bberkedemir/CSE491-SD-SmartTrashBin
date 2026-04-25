@@ -26,7 +26,7 @@ function formatDistance(m: number): string {
 }
 
 export default function RouteScreen() {
-  const { activeRoute } = useRoute();
+  const { activeRoute, setActiveRoute } = useRoute();
 
   const [route, setRoute] = useState<RouteResponse | null>(null);
   const [pickupStops, setPickupStops] = useState<RouteStop[]>([]);
@@ -150,6 +150,35 @@ export default function RouteScreen() {
     );
   };
 
+  const handleClearRoute = () => {
+    Alert.alert(
+      'Clear route?',
+      'This will discard the active route and any progress. You can generate a new one from the Map tab.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            locationSub.current?.remove();
+            locationSub.current = null;
+            setActiveRoute(null);
+            setRoute(null);
+            setPickupStops([]);
+            setCurrentIndex(0);
+            setCollected(new Set());
+            setSkipped(new Set());
+            setNearbyBanner(false);
+            setProximityAlertShown(false);
+            setDistanceToStop(null);
+            startedAtRef.current = null;
+          },
+        },
+      ]
+    );
+  };
+
   const openNavigation = (s: RouteStop) => {
     Linking.openURL(
       `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`
@@ -191,7 +220,19 @@ export default function RouteScreen() {
       {/* Route summary card */}
       <Card style={styles.summaryCard}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>Route Summary</Text>
+          <View style={styles.summaryHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Route Summary</Text>
+            <Button
+              mode="text"
+              icon="close-circle-outline"
+              compact
+              textColor="#c62828"
+              onPress={handleClearRoute}
+              disabled={collecting}
+            >
+              Clear
+            </Button>
+          </View>
           <View style={styles.chipRow}>
             <Chip icon="map-marker-multiple">{pickupStops.length} stops</Chip>
             <Chip icon="road-variant">{route.total_distance_km.toFixed(1)} km</Chip>
@@ -328,6 +369,7 @@ const styles = StyleSheet.create({
   emptySubtitle: { color: '#90a4ae', textAlign: 'center' },
   banner: { backgroundColor: '#c8e6c9', margin: 0 },
   summaryCard: { backgroundColor: '#fff', margin: 12, marginBottom: 8 },
+  summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   sectionTitle: { fontWeight: '600', color: '#37474f', marginBottom: 10 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   progress: { height: 8, borderRadius: 4 },

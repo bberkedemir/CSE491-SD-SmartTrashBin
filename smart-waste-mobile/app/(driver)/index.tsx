@@ -173,8 +173,8 @@ export default function MapScreen() {
     }
   };
 
-  const handleStartRoute = () => {
-    router.push('/(driver)/route');
+  const handleStopRoute = () => {
+    setActiveRoute(null);
   };
 
   const handleLogout = () => {
@@ -184,7 +184,8 @@ export default function MapScreen() {
     ]);
   };
 
-  const fullBins = bins.filter((b) => b.fill >= 75);
+  const fullBins = bins.filter((b) => b.fill >= 30);
+  const avgFill = bins.length > 0 ? bins.reduce((s, b) => s + b.fill, 0) / bins.length : 0;
 
   return (
     <View style={styles.container}>
@@ -196,8 +197,13 @@ export default function MapScreen() {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {/* Bin markers */}
-        {bins.map((bin) => (
+        {/* Bin markers — when a route is active, only show bins included in the route */}
+        {(route
+          ? bins.filter((b) =>
+              route.route_sequence.some((s) => s.type === 'pickup' && s.id === b.id)
+            )
+          : bins
+        ).map((bin) => (
           <Marker
             key={bin.id}
             coordinate={{ latitude: bin.lat, longitude: bin.lng }}
@@ -261,6 +267,10 @@ export default function MapScreen() {
             <Text style={styles.statNum}>{bins.length}</Text>
             <Text style={styles.statLbl}>Bins</Text>
           </View>
+          <View style={[styles.statBubble, { borderColor: '#1976d2' }]}>
+            <Text style={[styles.statNum, { color: '#1976d2' }]}>{avgFill.toFixed(1)}%</Text>
+            <Text style={styles.statLbl}>Avg fill</Text>
+          </View>
           <View style={[styles.statBubble, { borderColor: '#e65100' }]}>
             <Text style={[styles.statNum, { color: '#e65100' }]}>{fullBins.length}</Text>
             <Text style={styles.statLbl}>Need pickup</Text>
@@ -293,8 +303,8 @@ export default function MapScreen() {
               {route.total_distance_km.toFixed(1)} km · {Math.round(route.estimated_time_minutes)} min
             </Text>
           </View>
-          <Button mode="contained" compact onPress={handleStartRoute} style={styles.startBtn}>
-            Start
+          <Button mode="contained" compact icon="stop-circle-outline" onPress={handleStopRoute} style={styles.startBtn}>
+            Stop
           </Button>
         </View>
       )}

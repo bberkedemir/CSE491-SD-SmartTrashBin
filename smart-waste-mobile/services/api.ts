@@ -56,7 +56,7 @@ export const collectBin = async (binId: number): Promise<Bin> => {
 export const getOptimizedRoute = async (
   startLat: number,
   startLng: number,
-  threshold = 75
+  threshold = 30
 ): Promise<RouteResponse> => {
   const { data } = await api.get<RouteResponse>('/api/v1/routes/optimize', {
     params: { start_lat: startLat, start_lng: startLng, threshold },
