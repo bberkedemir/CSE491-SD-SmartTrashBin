@@ -159,3 +159,43 @@ def make_me_truck_driver(username: str, db: Session = Depends(get_db)):
     user.role = UserRole.TRUCK_DRIVER
     db.commit()
     return {"message": f"{username} is now a truck driver"}
+
+
+@router.post("/register-driver", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def register_driver(user_data: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user as truck driver (mobile app)"""
+    logger.info(f"[REGISTER-DRIVER] Attempt: username='{user_data.username}', email='{user_data.email}'")
+
+    try:
+        existing = user_crud.get_user_by_username(db, user_data.username)
+        if existing:
+            logger.warning(f"[REGISTER-DRIVER] REJECTED — username '{user_data.username}' is already taken")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Username '{user_data.username}' is already taken"
+            )
+
+        existing = user_crud.get_user_by_email(db, user_data.email)
+        if existing:
+            logger.warning(f"[REGISTER-DRIVER] REJECTED — email '{user_data.email}' is already registered")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Email '{user_data.email}' is already registered"
+            )
+
+        new_user = user_crud.create_user_with_role(db, user_data, UserRole.TRUCK_DRIVER)
+        token = AuthService.create_access_token(new_user.id, new_user.username)
+
+        logger.info(f"[REGISTER-DRIVER] SUCCESS — user '{new_user.username}' created as truck_driver (ID: {new_user.id})")
+        return TokenResponse(
+            user=UserResponse.model_validate(new_user),
+            token=token
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[REGISTER-DRIVER] ERROR for '{user_data.username}': {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during registration: {type(e).__name__}"
+        )

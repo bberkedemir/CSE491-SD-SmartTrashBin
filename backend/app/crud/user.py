@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate
 from app.services.auth_service import AuthService
 
@@ -28,6 +28,24 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_pw,
+    )
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def create_user_with_role(db: Session, user_data: UserCreate, role: UserRole) -> User:
+    # Create a new user with a specific role (e.g. truck_driver for mobile app)
+    hashed_pw = AuthService.hash_password(user_data.password)
+
+    db_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        full_name=user_data.full_name,
+        hashed_password=hashed_pw,
+        role=role,
     )
 
     db.add(db_user)
