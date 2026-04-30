@@ -52,5 +52,11 @@ export function useBins() {
         await binApi.exportData(format);
     }, []);
 
-    return { bins, loading, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData };
+    const deleteAllBins = useCallback(async () => {
+        const msg = await binApi.deleteAll();
+        setBins([]);
+        return msg;
+    }, []);
+
+    return { bins, loading, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData };
 }
