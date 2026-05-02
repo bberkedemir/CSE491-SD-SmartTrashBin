@@ -109,6 +109,8 @@ const RoutingPage: React.FC = () => {
 
   useEffect(() => {
     fetchBins();
+    const interval = setInterval(fetchBins, 10000); // Auto-refresh every 10s
+    return () => clearInterval(interval);
   }, [fetchBins]);
 
   // Effect: Recalculate route if truck moves more than 10 meters locally
