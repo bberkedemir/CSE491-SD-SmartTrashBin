@@ -57,6 +57,16 @@ export const binApi = {
         if (!response.ok) throw new Error('Failed to delete bin');
     },
 
+    async deleteAll(): Promise<string> {
+        const response = await fetch(`${API_BASE}/bins/all`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error('Failed to delete all bins');
+        const data = await response.json();
+        return data.message;
+    },
+
     async collect(binId: number): Promise<BinPoint> {
         const response = await fetch(`${API_BASE}/bins/${binId}/collect`, {
             method: 'POST',

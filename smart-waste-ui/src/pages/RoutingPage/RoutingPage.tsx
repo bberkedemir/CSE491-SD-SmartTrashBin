@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Button, LinearProgress, Menu, MenuItem } from '@mui/material';
+import { Box, Button, LinearProgress, Menu, MenuItem, Tooltip, IconButton } from '@mui/material';
+import { DeleteForever } from '@mui/icons-material';
 import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
 import { useBins } from '../../hooks/useBins';
@@ -10,7 +11,7 @@ import type { AppNotification } from '../../types/bin';
 import AlgorithmComparisonModal from '../../components/Map/AlgorithmComparisonModal';
 
 const RoutingPage: React.FC = () => {
-  const { bins, fetchBins, createBin, deleteBin, collectBin, throwTrash, simulateTime, exportData } = useBins();
+  const { bins, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
@@ -108,6 +109,8 @@ const RoutingPage: React.FC = () => {
 
   useEffect(() => {
     fetchBins();
+    const interval = setInterval(fetchBins, 10000); // Auto-refresh every 10s
+    return () => clearInterval(interval);
   }, [fetchBins]);
 
   // Effect: Recalculate route if truck moves more than 10 meters locally
@@ -135,7 +138,7 @@ const RoutingPage: React.FC = () => {
   return (
     <>
       <Box sx={{ height: '100vh', width: '100%' }}>
-        <Box style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <Box style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
           <Button
             variant="contained"
             onClick={simulateTime}
@@ -155,6 +158,42 @@ const RoutingPage: React.FC = () => {
           >
             Simulate 12 Hours
           </Button>
+          {isAdmin && (
+            <Tooltip title="Delete All Bins" arrow placement="left">
+              <IconButton
+                id="delete-all-bins-btn"
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to delete ALL bins? This cannot be undone.')) {
+                    try {
+                      await deleteAllBins();
+                      setNotification({ open: true, message: 'All bins deleted', severity: 'success' });
+                    } catch {
+                      setNotification({ open: true, message: 'Failed to delete bins', severity: 'error' });
+                    }
+                  }
+                }}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: 'rgba(255,255,255,0.85)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#999',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: '#ff4757',
+                    color: '#fff',
+                    transform: 'scale(1.1)',
+                    boxShadow: '0 4px 12px rgba(255,71,87,0.4)',
+                  },
+                  '&:focus': { outline: 'none' },
+                  '&:focus-visible': { outline: 'none' },
+                }}
+              >
+                <DeleteForever sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
         <MapContainer
           bins={bins}

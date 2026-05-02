@@ -166,6 +166,21 @@ def simulate_time(db: Session = Depends(get_db)):
     return {"message": f"Successfully simulated time. Updated {updated_count} bins."}
 
 
+@router.delete("/all", status_code=200)
+def delete_all_bins(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    """Delete all bins and log the event"""
+    all_bins = bin_crud.get_all(db, skip=0, limit=10000)
+    count = len(all_bins)
+    for b in all_bins:
+        bin_crud.delete(db, b.id)
+    LogCRUD.create_log(db, LogCreate(
+        action="bulk_delete",
+        bin_id=None,
+        notes=f"All {count} bins deleted"
+    ))
+    return {"message": f"Deleted {count} bins"}
+
+
 @router.delete("/{bin_id}", status_code=204)
 def delete_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
     """Delete a bin and log the event"""
