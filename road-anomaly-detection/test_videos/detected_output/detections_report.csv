@@ -1,0 +1,23 @@
+Video Name,Track ID,Class Name,Max Confidence,Timestamp (s),Saved Image Path
+test3,1,alligator crack,0.71,0.40,test_videos\extracted_anomalies\alligator_crack\test3_alligator_crack_id_1.jpg
+test3,3,alligator crack,0.78,20.39,test_videos\extracted_anomalies\alligator_crack\test3_alligator_crack_id_3.jpg
+test3,5,alligator crack,0.86,30.39,test_videos\extracted_anomalies\alligator_crack\test3_alligator_crack_id_5.jpg
+test3,9,alligator crack,0.75,49.62,test_videos\extracted_anomalies\alligator_crack\test3_alligator_crack_id_9.jpg
+test3,10,longitudinal crack,0.73,50.78,test_videos\extracted_anomalies\longitudinal_crack\test3_longitudinal_crack_id_10.jpg
+test4,11,alligator crack,0.79,0.75,test_videos\extracted_anomalies\alligator_crack\test4_alligator_crack_id_11.jpg
+test4,13,longitudinal crack,0.59,5.79,test_videos\extracted_anomalies\longitudinal_crack\test4_longitudinal_crack_id_13.jpg
+test4,14,alligator crack,0.92,8.98,test_videos\extracted_anomalies\alligator_crack\test4_alligator_crack_id_14.jpg
+test4,18,alligator crack,0.65,33.01,test_videos\extracted_anomalies\alligator_crack\test4_alligator_crack_id_18.jpg
+test4,21,alligator crack,0.73,38.84,test_videos\extracted_anomalies\alligator_crack\test4_alligator_crack_id_21.jpg
+test5,22,longitudinal crack,0.57,1.90,test_videos\extracted_anomalies\longitudinal_crack\test5_longitudinal_crack_id_22.jpg
+test5,26,other corruption,0.74,10.76,test_videos\extracted_anomalies\other_corruption\test5_other_corruption_id_26.jpg
+test5,33,alligator crack,0.81,36.49,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_33.jpg
+test5,37,longitudinal crack,0.53,38.06,test_videos\extracted_anomalies\longitudinal_crack\test5_longitudinal_crack_id_37.jpg
+test5,40,alligator crack,0.71,38.36,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_40.jpg
+test5,41,longitudinal crack,0.65,40.42,test_videos\extracted_anomalies\longitudinal_crack\test5_longitudinal_crack_id_41.jpg
+test5,42,alligator crack,0.85,44.39,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_42.jpg
+test5,51,alligator crack,0.81,46.12,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_51.jpg
+test5,55,longitudinal crack,0.64,48.05,test_videos\extracted_anomalies\longitudinal_crack\test5_longitudinal_crack_id_55.jpg
+test5,58,alligator crack,0.74,48.42,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_58.jpg
+test5,59,alligator crack,0.59,53.12,test_videos\extracted_anomalies\alligator_crack\test5_alligator_crack_id_59.jpg
+test5,60,longitudinal crack,0.73,53.65,test_videos\extracted_anomalies\longitudinal_crack\test5_longitudinal_crack_id_60.jpg
