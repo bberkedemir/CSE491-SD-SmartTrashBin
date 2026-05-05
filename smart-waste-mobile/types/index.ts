@@ -64,3 +64,52 @@ export interface TokenResponse {
   token: string;
   token_type: string;
 }
+
+export interface GpsSample {
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  altitude: number | null;
+  heading: number | null;
+  speed: number | null;
+}
+
+export type AnomalySessionStatus =
+  | 'recorded'
+  | 'uploading'
+  | 'analysis_pending'
+  | 'upload_failed';
+
+export interface AnomalyCaptureSession {
+  sessionId: string;
+  videoUri: string;
+  gpsLogUri: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  pointCount: number;
+  status: AnomalySessionStatus;
+  uploadId?: number;
+  uploadedAt?: string;
+  errorMessage?: string;
+}
+
+export interface AnomalyUploadResponse {
+  id: number;
+  session_id: string;
+  status: AnomalySessionStatus;
+  video_path: string;
+  gps_log_path: string;
+  point_count: number;
+  duration_seconds: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string | null;
+  message: string;
+}
+
+export interface AnomalyUploadList {
+  uploads: AnomalyUploadResponse[];
+  total: number;
+}

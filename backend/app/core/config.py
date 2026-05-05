@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     
     # IoT
     IOT_API_KEY: str = "smartbin-iot-2026"
+
+    # Road anomaly uploads
+    ANOMALY_UPLOAD_DIR: str = "uploads/anomaly_sessions"
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]

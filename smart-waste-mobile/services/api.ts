@@ -1,9 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Bin, RouteResponse, CollectionLog, LoginCredentials, RegisterCredentials, TokenResponse, User } from '../types';
+import type {
+  AnomalyCaptureSession,
+  AnomalyUploadList,
+  AnomalyUploadResponse,
+  Bin,
+  RouteResponse,
+  CollectionLog,
+  LoginCredentials,
+  RegisterCredentials,
+  TokenResponse,
+  User,
+} from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://192.168.1.24:8000';
+export const API_BASE_URL = 'http://192.168.1.102:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -83,6 +94,45 @@ export interface RouteCompletedPayload {
 
 export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise<void> => {
   await api.post('/api/v1/logs/route-completed', payload);
+};
+
+// Road anomaly uploads
+export const uploadAnomalySession = async (
+  session: AnomalyCaptureSession
+): Promise<AnomalyUploadResponse> => {
+  const formData = new FormData();
+  formData.append('session_id', session.sessionId);
+  formData.append('started_at', session.startedAt);
+  formData.append('ended_at', session.endedAt);
+  formData.append('point_count', String(session.pointCount));
+  formData.append('duration_seconds', String(session.durationSeconds));
+  formData.append('video', {
+    uri: session.videoUri,
+    name: `${session.sessionId}.mp4`,
+    type: 'video/mp4',
+  } as any);
+  formData.append('gps_log', {
+    uri: session.gpsLogUri,
+    name: `${session.sessionId}-gps.json`,
+    type: 'application/json',
+  } as any);
+
+  const { data } = await api.post<AnomalyUploadResponse>(
+    '/api/v1/anomalies/uploads',
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    }
+  );
+  return data;
+};
+
+export const getAnomalyUploads = async (skip = 0, limit = 50): Promise<AnomalyUploadResponse[]> => {
+  const { data } = await api.get<AnomalyUploadList>('/api/v1/anomalies/uploads', {
+    params: { skip, limit },
+  });
+  return data.uploads;
 };
 
 export default api;
