@@ -15,6 +15,8 @@ import type {
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
 export const API_BASE_URL = 'http://192.168.1.102:8000';
+//export const API_BASE_URL = 'https://arise-deprive-disobey.ngrok-free.dev';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -97,8 +99,11 @@ export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise
 };
 
 // Road anomaly uploads
+const ANOMALY_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
 export const uploadAnomalySession = async (
-  session: AnomalyCaptureSession
+  session: AnomalyCaptureSession,
+  onProgress?: (progress: number) => void
 ): Promise<AnomalyUploadResponse> => {
   const formData = new FormData();
   formData.append('session_id', session.sessionId);
@@ -122,7 +127,13 @@ export const uploadAnomalySession = async (
     formData,
     {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
+      timeout: ANOMALY_UPLOAD_TIMEOUT_MS,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      onUploadProgress: (event) => {
+        if (!event.total) return;
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      },
     }
   );
   return data;

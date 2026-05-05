@@ -12,6 +12,8 @@ import type { AnomalyCaptureSession, GpsSample } from '../../types';
 
 const STORAGE_KEY = 'smartWaste.anomalySessions';
 const SESSION_DIR = 'anomaly-sessions/';
+const INTERRUPTED_UPLOAD_MESSAGE =
+  'Previous upload was interrupted. The local recording is still saved and can be retried.';
 
 type CameraRef = React.ElementRef<typeof CameraView>;
 
@@ -38,13 +40,31 @@ function toGpsSample(location: Location.LocationObject): GpsSample {
 }
 
 function statusLabel(status: AnomalyCaptureSession['status']): string {
+  if (status === 'analysis_complete') return 'Analysis complete';
+  if (status === 'analysis_running') return 'Analysis in progress';
+  if (status === 'analysis_failed') return 'Analysis failed';
   if (status === 'analysis_pending') return 'Analysis in progress';
   if (status === 'uploading') return 'Uploading';
   if (status === 'upload_failed') return 'Upload failed';
   return 'Ready to upload';
 }
 
+function normalizeSavedSessions(sessions: AnomalyCaptureSession[]) {
+  return sessions.map((session) => {
+    if (session.status !== 'uploading') return session;
+    return {
+      ...session,
+      status: 'upload_failed' as const,
+      uploadProgress: undefined,
+      errorMessage: session.errorMessage ?? INTERRUPTED_UPLOAD_MESSAGE,
+    };
+  });
+}
+
 function statusColor(status: AnomalyCaptureSession['status']): string {
+  if (status === 'analysis_complete') return '#2e7d32';
+  if (status === 'analysis_running') return '#1565c0';
+  if (status === 'analysis_failed') return '#c62828';
   if (status === 'analysis_pending') return '#1565c0';
   if (status === 'uploading') return '#6a1b9a';
   if (status === 'upload_failed') return '#c62828';
@@ -98,8 +118,12 @@ export default function AnomalyScreen() {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       const saved = raw ? (JSON.parse(raw) as AnomalyCaptureSession[]) : [];
-      sessionsRef.current = saved;
-      setSessions(saved);
+      const normalized = normalizeSavedSessions(saved);
+      if (JSON.stringify(normalized) !== JSON.stringify(saved)) {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      }
+      sessionsRef.current = normalized;
+      setSessions(normalized);
     } catch {
       setSessions([]);
       sessionsRef.current = [];
@@ -281,18 +305,44 @@ export default function AnomalyScreen() {
   };
 
   const handleUpload = async (session: AnomalyCaptureSession) => {
-    await updateSession(session.sessionId, { status: 'uploading', errorMessage: undefined });
+    const [videoInfo, gpsInfo] = await Promise.all([
+      FileSystem.getInfoAsync(session.videoUri),
+      FileSystem.getInfoAsync(session.gpsLogUri),
+    ]);
+    if (!videoInfo.exists || !gpsInfo.exists) {
+      await updateSession(session.sessionId, {
+        status: 'upload_failed',
+        uploadProgress: undefined,
+        errorMessage: 'Local video or GPS log is missing. Do not remove the recording before checking device storage.',
+      });
+      Alert.alert('Upload unavailable', 'The local video or GPS log could not be found on this device.');
+      return;
+    }
+
+    await updateSession(session.sessionId, {
+      status: 'uploading',
+      uploadProgress: 0,
+      errorMessage: undefined,
+    });
     try {
-      const response = await uploadAnomalySession(session);
+      let lastProgress = 0;
+      const response = await uploadAnomalySession(session, async (progress) => {
+        if (progress < lastProgress + 5 && progress < 100) return;
+        lastProgress = progress;
+        await updateSession(session.sessionId, { uploadProgress: progress });
+      });
       await updateSession(session.sessionId, {
         status: response.status,
         uploadId: response.id,
         uploadedAt: new Date().toISOString(),
+        uploadProgress: undefined,
+        errorMessage: undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       await updateSession(session.sessionId, {
         status: 'upload_failed',
+        uploadProgress: undefined,
         errorMessage: error instanceof Error ? error.message : 'Upload failed',
       });
       Alert.alert('Upload failed', 'The recording is still saved locally. Try again when connected.');
@@ -441,6 +491,18 @@ export default function AnomalyScreen() {
                     {session.errorMessage}
                   </Text>
                 )}
+                {session.status === 'uploading' && (
+                  <View style={styles.uploadProgressBlock}>
+                    <ProgressBar
+                      progress={(session.uploadProgress ?? 0) / 100}
+                      color="#6a1b9a"
+                      style={styles.progress}
+                    />
+                    <Text variant="bodySmall" style={styles.progressText}>
+                      Uploading {session.uploadProgress ?? 0}%
+                    </Text>
+                  </View>
+                )}
               </Card.Content>
               <Card.Actions style={styles.sessionActions}>
                 <Button
@@ -457,9 +519,14 @@ export default function AnomalyScreen() {
                   icon="cloud-upload-outline"
                   onPress={() => handleUpload(session)}
                   loading={session.status === 'uploading'}
-                  disabled={session.status === 'uploading' || session.status === 'analysis_pending'}
+                  disabled={
+                    session.status === 'uploading' ||
+                    session.status === 'analysis_pending' ||
+                    session.status === 'analysis_running' ||
+                    session.status === 'analysis_complete'
+                  }
                 >
-                  Upload
+                  {session.status === 'upload_failed' ? 'Retry Upload' : 'Upload'}
                 </Button>
               </Card.Actions>
             </Card>
@@ -534,5 +601,6 @@ const styles = StyleSheet.create({
   sessionMeta: { color: '#607d8b', marginTop: 2 },
   statusText: { color: '#fff', fontSize: 11 },
   errorText: { color: '#c62828', marginTop: 8 },
+  uploadProgressBlock: { marginTop: 10 },
   sessionActions: { justifyContent: 'flex-end', gap: 6, paddingHorizontal: 12, paddingBottom: 10 },
 });

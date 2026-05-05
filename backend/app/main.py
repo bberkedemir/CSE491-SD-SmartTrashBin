@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
-from app.models import user, bin, log, token_blacklist, anomaly_upload
+from app.models import user, bin, log, token_blacklist, anomaly_upload, road_anomaly
 from app.api import bins, routes, auth, logs, iot, anomalies
 
 
@@ -12,6 +12,7 @@ bin.Base.metadata.create_all(bind=engine)
 log.Base.metadata.create_all(bind=engine)
 token_blacklist.Base.metadata.create_all(bind=engine)
 anomaly_upload.Base.metadata.create_all(bind=engine)
+road_anomaly.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Smart Waste Bin API",

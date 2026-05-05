@@ -23,3 +23,25 @@ class AnomalyUploadResponse(BaseModel):
 class AnomalyUploadList(BaseModel):
     uploads: list[AnomalyUploadResponse]
     total: int
+
+
+class RoadAnomalyResponse(BaseModel):
+    id: int
+    upload_id: int
+    driver_id: int | None = None
+    class_name: str
+    track_id: int
+    confidence: float
+    timestamp_seconds: float
+    image_path: str
+    latitude: float | None = None
+    longitude: float | None = None
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class RoadAnomalyList(BaseModel):
+    anomalies: list[RoadAnomalyResponse]
+    total: int

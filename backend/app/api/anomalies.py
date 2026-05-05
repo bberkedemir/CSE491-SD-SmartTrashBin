@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,10 @@ from app.core.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.anomaly_upload import AnomalyUpload
+from app.models.road_anomaly import RoadAnomaly
 from app.models.user import User
-from app.schemas.anomaly import AnomalyUploadList, AnomalyUploadResponse
+from app.schemas.anomaly import AnomalyUploadList, AnomalyUploadResponse, RoadAnomalyList
+from app.services.anomaly_analysis import analyze_upload
 
 
 router = APIRouter()
@@ -66,6 +68,7 @@ def video_suffix(filename: str | None) -> str:
 
 @router.post("/uploads", response_model=AnomalyUploadResponse, status_code=status.HTTP_201_CREATED)
 async def create_anomaly_upload(
+    background_tasks: BackgroundTasks,
     session_id: str = Form(...),
     started_at: str | None = Form(None),
     ended_at: str | None = Form(None),
@@ -106,6 +109,7 @@ async def create_anomaly_upload(
         db.add(upload)
     db.commit()
     db.refresh(upload)
+    background_tasks.add_task(analyze_upload, upload.id)
     return upload
 
 
@@ -119,3 +123,39 @@ def list_anomaly_uploads(
     query = db.query(AnomalyUpload).filter(AnomalyUpload.driver_id == current_user.id)
     uploads = query.order_by(desc(AnomalyUpload.created_at)).offset(skip).limit(limit).all()
     return AnomalyUploadList(uploads=uploads, total=query.count())
+
+
+@router.post("/uploads/{upload_id}/analyze", response_model=AnomalyUploadResponse)
+def queue_upload_analysis(
+    upload_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    upload = db.query(AnomalyUpload).filter(AnomalyUpload.id == upload_id).first()
+    if not upload or upload.driver_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    if upload.status != "analysis_running":
+        upload.status = "analysis_pending"
+        db.commit()
+        db.refresh(upload)
+        background_tasks.add_task(analyze_upload, upload.id)
+    return upload
+
+
+@router.get("/uploads/{upload_id}/anomalies", response_model=RoadAnomalyList)
+def list_upload_anomalies(
+    upload_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    upload = db.query(AnomalyUpload).filter(AnomalyUpload.id == upload_id).first()
+    if not upload or upload.driver_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    query = db.query(RoadAnomaly).filter(RoadAnomaly.upload_id == upload_id)
+    anomalies = query.order_by(RoadAnomaly.timestamp_seconds.asc()).offset(skip).limit(limit).all()
+    return RoadAnomalyList(anomalies=anomalies, total=query.count())

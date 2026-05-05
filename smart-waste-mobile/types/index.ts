@@ -79,6 +79,9 @@ export type AnomalySessionStatus =
   | 'recorded'
   | 'uploading'
   | 'analysis_pending'
+  | 'analysis_running'
+  | 'analysis_complete'
+  | 'analysis_failed'
   | 'upload_failed';
 
 export interface AnomalyCaptureSession {
@@ -92,6 +95,7 @@ export interface AnomalyCaptureSession {
   status: AnomalySessionStatus;
   uploadId?: number;
   uploadedAt?: string;
+  uploadProgress?: number;
   errorMessage?: string;
 }
 
