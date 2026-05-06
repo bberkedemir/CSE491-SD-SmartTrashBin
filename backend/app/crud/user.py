@@ -23,12 +23,14 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     # Create a new user — password is hashed before storing
     hashed_pw = AuthService.hash_password(user_data.password)
 
+    assigned_role = UserRole.TRUCK_DRIVER if user_data.client_type == "mobile" else UserRole.ADMIN
+
     db_user = User(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_pw,
-        role=UserRole.TRUCK_DRIVER,
+        role=assigned_role,
     )
 
     db.add(db_user)
