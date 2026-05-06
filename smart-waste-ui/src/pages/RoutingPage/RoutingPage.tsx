@@ -3,11 +3,14 @@ import { Box, Button, LinearProgress, Menu, MenuItem, Tooltip, IconButton } from
 import { DeleteForever } from '@mui/icons-material';
 import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
+import { DriverPanel } from '../../components/DriverPanel/DriverPanel';
 import { useBins } from '../../hooks/useBins';
 import { useRouteOptimization } from '../../hooks/useRouteOptimization';
+import { useDriverTracking } from '../../hooks/useDriverTracking';
 import { calculateDistanceMeters } from '../../utils/geoUtils';
+import { getDriverColor } from '../../utils/trackingUtils';
 import { binApi } from '../../api/binApi';
-import type { AppNotification } from '../../types/bin';
+import type { AppNotification, DriverSession } from '../../types/bin';
 import AlgorithmComparisonModal from '../../components/Map/AlgorithmComparisonModal';
 
 const RoutingPage: React.FC = () => {
@@ -61,6 +64,19 @@ const RoutingPage: React.FC = () => {
     mapRef,
     setNotification
   );
+
+  const { sessions: driverSessions, isConnected: trackingConnected } = useDriverTracking();
+  const allDriverIds = driverSessions.map(s => s.driver_id);
+  const boundGetColor = useCallback(
+    (driverId: number) => getDriverColor(driverId, allDriverIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allDriverIds.join(',')]
+  );
+  const handleDriverClick = useCallback((session: DriverSession) => {
+    if (mapRef.current) {
+      mapRef.current.setView([session.lat, session.lng], 16, { animate: true });
+    }
+  }, []);
 
   // Role-based rendering
   const userStr = localStorage.getItem('user');
@@ -207,6 +223,14 @@ const RoutingPage: React.FC = () => {
           onThrowTrash={throwTrash}
           onMapReady={handleMapReady}
           onExitAddMode={handleExitAddMode}
+          driverSessions={driverSessions}
+          getDriverColor={boundGetColor}
+        />
+        <DriverPanel
+          sessions={driverSessions}
+          isConnected={trackingConnected}
+          getColor={boundGetColor}
+          onDriverClick={handleDriverClick}
         />
       </Box>
 

@@ -4,7 +4,7 @@ import { Text, Button, Card, Chip, ProgressBar, Divider, Banner } from 'react-na
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { collectBin } from '../../services/api';
+import { collectBin, updateTrackingPosition, completeTrackingSession } from '../../services/api';
 import { useRoute } from '../../context/RouteContext';
 import type { RouteResponse, RouteStop } from '../../types';
 
@@ -41,6 +41,10 @@ export default function RouteScreen() {
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
   const startedAtRef = useRef<number | null>(null);
+  // Refs mirror state so the GPS callback always reads current values without stale closures
+  const collectedRef = useRef<Set<number>>(new Set());
+  const skippedRef = useRef<Set<number>>(new Set());
+  const currentIndexRef = useRef<number>(0);
 
   // Sync from context whenever a new route is set from the Map tab
   useEffect(() => {
@@ -53,6 +57,9 @@ export default function RouteScreen() {
     setSkipped(new Set());
     setNearbyBanner(false);
     startedAtRef.current = Date.now();
+    collectedRef.current = new Set();
+    skippedRef.current = new Set();
+    currentIndexRef.current = 0;
   }, [activeRoute]);
 
   useEffect(() => {
@@ -79,7 +86,18 @@ export default function RouteScreen() {
     if (status !== 'granted') return;
     locationSub.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 5000 },
-      (loc) => setDriverLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude })
+      (loc) => {
+        const { latitude, longitude } = loc.coords;
+        setDriverLocation({ lat: latitude, lng: longitude });
+        // Report position to backend (fire-and-forget)
+        updateTrackingPosition({
+          lat: latitude,
+          lng: longitude,
+          current_stop_index: currentIndexRef.current,
+          collected_ids: [...collectedRef.current],
+          skipped_ids: [...skippedRef.current],
+        });
+      }
     );
   };
 
@@ -89,6 +107,10 @@ export default function RouteScreen() {
         (s, i) => i > fromIndex && !updatedCollected.has(s.id) && !updatedSkipped.has(s.id)
       );
       if (remaining === -1) {
+        completeTrackingSession({
+          collected_ids: [...updatedCollected],
+          skipped_ids: [...updatedSkipped],
+        }).catch(() => {});
         router.replace({
           pathname: '/(driver)/summary',
           params: {
@@ -100,6 +122,7 @@ export default function RouteScreen() {
         });
       } else {
         setCurrentIndex(remaining);
+        currentIndexRef.current = remaining;
         setProximityAlertShown(false);
         setNearbyBanner(false);
       }
@@ -117,6 +140,7 @@ export default function RouteScreen() {
       const next = new Set(collected);
       next.add(stop.id);
       setCollected(next);
+      collectedRef.current = next;
       setNearbyBanner(false);
       advanceToNextStop(next, skipped, currentIndex);
     } catch {
@@ -142,6 +166,7 @@ export default function RouteScreen() {
             const next = new Set(skipped);
             next.add(stop.id);
             setSkipped(next);
+            skippedRef.current = next;
             setNearbyBanner(false);
             advanceToNextStop(collected, next, currentIndex);
           },
@@ -161,6 +186,10 @@ export default function RouteScreen() {
           style: 'destructive',
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            completeTrackingSession({
+              collected_ids: [...collectedRef.current],
+              skipped_ids: [...skippedRef.current],
+            }).catch(() => {});
             locationSub.current?.remove();
             locationSub.current = null;
             setActiveRoute(null);

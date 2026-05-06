@@ -5,7 +5,7 @@ import type { LatLng } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { getBins, getOptimizedRoute } from '../../services/api';
+import { getBins, getOptimizedRoute, startTrackingSession } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useRoute } from '../../context/RouteContext';
 import ErrorState from '../../components/ErrorState';
@@ -143,6 +143,13 @@ export default function MapScreen() {
       setRoute(r);
       setActiveRoute(r);  // share with Route tab via context
       setDisplayPolyline(geo.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
+      // Start live tracking session (non-blocking)
+      startTrackingSession({
+        route_stops: r.route_sequence,
+        route_geometry: r.route_geometry as [number, number][],
+        current_lat: truckPosition.latitude,
+        current_lng: truckPosition.longitude,
+      }).catch(() => {});
       const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },

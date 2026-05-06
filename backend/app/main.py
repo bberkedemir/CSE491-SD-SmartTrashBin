@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
 from app.models import user, bin, log, token_blacklist
-from app.api import bins, routes, auth, logs, iot
+from app.api import bins, routes, auth, logs, iot, tracking
 
 
 # Create database tables
@@ -34,6 +34,7 @@ app.include_router(routes.router, prefix=f"{settings.API_V1_STR}/routes", tags=[
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(logs.router, prefix=f"{settings.API_V1_STR}/logs", tags=["logs"])
 app.include_router(iot.router, prefix=f"{settings.API_V1_STR}/iot", tags=["iot"])
+app.include_router(tracking.router, prefix=f"{settings.API_V1_STR}/tracking", tags=["tracking"])
 
 @app.get("/")
 def root():
