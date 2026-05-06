@@ -12,7 +12,7 @@ import mapPinCursor from '../../assets/mapPinCursor.png';
 const ADD_MODE_CURSOR = `url(${mapPinCursor}) 16 32, crosshair`;
 
 const MAP_CENTER: L.LatLngExpression = [36.89488259077369, 30.649857090761955];
-const MAP_ZOOM = 13;
+const MAP_ZOOM = 15;
 
 export function useMapMarkers(
     bins: BinPoint[],
@@ -67,7 +67,7 @@ export function useMapMarkers(
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            minZoom: 16,
+            minZoom: 3,
             attribution:
                 '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(mapRef.current);
@@ -120,8 +120,21 @@ export function useMapMarkers(
                 markersRef.current.push(marker);
             });
         } else {
-            // --- DEFAULT MODE: all bins with delete ---
-            bins.forEach(bin => {
+            // --- DEFAULT MODE: bins with popups ---
+            // When driver sessions are active, only show bins included in those routes
+            const driverBinIds = driverSessions && driverSessions.length > 0
+                ? new Set(
+                    driverSessions.flatMap(s =>
+                        s.route_stops.filter(r => r.type === 'pickup').map(r => r.id)
+                    )
+                  )
+                : null;
+
+            const visibleBins = driverBinIds
+                ? bins.filter(b => driverBinIds.has(b.id))
+                : bins;
+
+            visibleBins.forEach(bin => {
                 const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.getBinIcon(bin.fill) })
                     .addTo(mapRef.current!)
                     .bindPopup(createMarkerPopupHtml(bin));
@@ -169,7 +182,7 @@ export function useMapMarkers(
                 markersRef.current.push(marker);
             });
         }
-    }, [bins, routeStops, onDeleteBin, onCollectBin, onThrowTrash]);
+    }, [bins, routeStops, driverSessions, onDeleteBin, onCollectBin, onThrowTrash]);
 
     // Handle add-mode click
     useEffect(() => {

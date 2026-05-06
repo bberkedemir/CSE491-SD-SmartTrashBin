@@ -72,6 +72,12 @@ export const getLogs = async (skip = 0, limit = 50): Promise<CollectionLog[]> =>
   return data.logs;
 };
 
+export interface RouteBinEntry {
+  id: number;
+  title: string;
+  fill_level: number;
+}
+
 export interface RouteCompletedPayload {
   stops_total: number;
   collected: number;
@@ -79,6 +85,8 @@ export interface RouteCompletedPayload {
   distance_km: number;
   estimated_minutes: number;
   elapsed_seconds: number;
+  collected_bins?: RouteBinEntry[];
+  skipped_bins?: RouteBinEntry[];
 }
 
 export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise<void> => {

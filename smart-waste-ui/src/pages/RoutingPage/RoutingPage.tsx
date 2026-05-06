@@ -65,7 +65,7 @@ const RoutingPage: React.FC = () => {
     setNotification
   );
 
-  const { sessions: driverSessions, isConnected: trackingConnected } = useDriverTracking();
+  const { sessions: driverSessions, isConnected: trackingConnected, cancelSession: cancelDriverSession } = useDriverTracking();
   const allDriverIds = driverSessions.map(s => s.driver_id);
   const boundGetColor = useCallback(
     (driverId: number) => getDriverColor(driverId, allDriverIds),
@@ -229,8 +229,10 @@ const RoutingPage: React.FC = () => {
         <DriverPanel
           sessions={driverSessions}
           isConnected={trackingConnected}
+          isAdmin={isAdmin}
           getColor={boundGetColor}
           onDriverClick={handleDriverClick}
+          onCancelSession={cancelDriverSession}
         />
       </Box>
 

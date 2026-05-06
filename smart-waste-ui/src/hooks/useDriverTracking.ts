@@ -117,5 +117,12 @@ export function useDriverTracking() {
         };
     }, [connect, stopPolling]);
 
-    return { sessions, isConnected };
+    const cancelSession = useCallback(async (driverId: number): Promise<void> => {
+        await fetch(`/api/v1/tracking/sessions/${driverId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${getToken()}` },
+        });
+    }, []);
+
+    return { sessions, isConnected, cancelSession };
 }

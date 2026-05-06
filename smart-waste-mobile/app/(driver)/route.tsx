@@ -45,6 +45,7 @@ export default function RouteScreen() {
   const collectedRef = useRef<Set<number>>(new Set());
   const skippedRef = useRef<Set<number>>(new Set());
   const currentIndexRef = useRef<number>(0);
+  const driverLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Sync from context whenever a new route is set from the Map tab
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function RouteScreen() {
       (loc) => {
         const { latitude, longitude } = loc.coords;
         setDriverLocation({ lat: latitude, lng: longitude });
+        driverLocationRef.current = { lat: latitude, lng: longitude };
         // Report position to backend (fire-and-forget)
         updateTrackingPosition({
           lat: latitude,
@@ -142,6 +144,16 @@ export default function RouteScreen() {
       setCollected(next);
       collectedRef.current = next;
       setNearbyBanner(false);
+      // Push immediately so the web panel reflects the collect without waiting for GPS
+      if (driverLocationRef.current) {
+        updateTrackingPosition({
+          lat: driverLocationRef.current.lat,
+          lng: driverLocationRef.current.lng,
+          current_stop_index: currentIndexRef.current,
+          collected_ids: [...next],
+          skipped_ids: [...skippedRef.current],
+        });
+      }
       advanceToNextStop(next, skipped, currentIndex);
     } catch {
       Alert.alert('Error', 'Failed to mark bin as collected. Try again.');
@@ -168,6 +180,16 @@ export default function RouteScreen() {
             setSkipped(next);
             skippedRef.current = next;
             setNearbyBanner(false);
+            // Push immediately so the web panel reflects the skip without waiting for GPS
+            if (driverLocationRef.current) {
+              updateTrackingPosition({
+                lat: driverLocationRef.current.lat,
+                lng: driverLocationRef.current.lng,
+                current_stop_index: currentIndexRef.current,
+                collected_ids: [...collectedRef.current],
+                skipped_ids: [...next],
+              });
+            }
             advanceToNextStop(collected, next, currentIndex);
           },
         },

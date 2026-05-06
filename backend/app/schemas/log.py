@@ -5,8 +5,9 @@ class LogBase(BaseModel):
     action: str
     bin_id: int | None = None
     fill_before: int | None = None
-    fill_after : int | None = None
+    fill_after: int | None = None
     notes: str | None = None
+    performed_by: str | None = None
 
 class LogCreate(LogBase):
     pass

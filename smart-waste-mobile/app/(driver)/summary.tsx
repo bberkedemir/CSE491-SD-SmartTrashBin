@@ -79,6 +79,8 @@ export default function SummaryScreen() {
       distance_km: route.total_distance_km,
       estimated_minutes: estDurationMin,
       elapsed_seconds: elapsedMs !== null ? Math.round(elapsedMs / 1000) : 0,
+      collected_bins: collectedStops.map((s) => ({ id: s.id, title: s.title, fill_level: s.fill_level })),
+      skipped_bins: skippedStops.map((s) => ({ id: s.id, title: s.title, fill_level: s.fill_level })),
     }).catch(() => {
       // non-fatal — the trip still shows on-screen
     });

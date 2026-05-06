@@ -68,9 +68,13 @@ export const binApi = {
     },
 
     async collect(binId: number): Promise<BinPoint> {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/bins/${binId}/collect`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
         });
         if (!response.ok) throw new Error('Failed to simulate collecting bin');
         return response.json();

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.auth_dependency import get_current_user
+from app.core.auth_dependency import get_current_user, get_current_admin_user
 from app.models.user import User
 from app.models.token_blacklist import TokenBlacklist
 from app.services.auth_service import AuthService
@@ -110,6 +111,48 @@ async def complete_session(
 def get_sessions(current_user: User = Depends(get_current_user)):
     sessions_list = list(_sessions.values())
     return SessionsResponse(sessions=sessions_list, count=len(sessions_list))
+
+
+@router.delete("/sessions/{driver_id}")
+async def cancel_session(
+    driver_id: int,
+    current_user: User = Depends(get_current_admin_user),
+):
+    """Admin cancels an active driver session (e.g. driver closed the app)."""
+    if driver_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    session = _sessions[driver_id]
+    session.is_completed = True
+    session.last_update = datetime.now(timezone.utc)
+
+    await _broadcast(WSMessage(event="session_completed", session=session))
+    del _sessions[driver_id]
+    logger.info(f"[TRACKING] Session cancelled by admin {current_user.username}: driver_id={driver_id}")
+    return {"status": "cancelled", "driver_id": driver_id}
+
+
+# ── Stale session cleanup ─────────────────────────────────────────────────────
+STALE_TIMEOUT_SECONDS = 300  # 5 minutes — covers closed/backgrounded app
+
+
+async def cleanup_stale_sessions() -> None:
+    """Background task: remove sessions with no GPS update for 5 minutes."""
+    while True:
+        await asyncio.sleep(60)
+        now = datetime.now(timezone.utc)
+        stale = [
+            s for s in list(_sessions.values())
+            if (now - s.last_update).total_seconds() > STALE_TIMEOUT_SECONDS
+        ]
+        for session in stale:
+            session.is_completed = True
+            await _broadcast(WSMessage(event="session_completed", session=session))
+            _sessions.pop(session.driver_id, None)
+            logger.info(
+                f"[TRACKING] Stale session auto-removed: driver={session.driver_name} "
+                f"(last update {int((now - session.last_update).total_seconds())}s ago)"
+            )
 
 
 @router.websocket("/ws")
