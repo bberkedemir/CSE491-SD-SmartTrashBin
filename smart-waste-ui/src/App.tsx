@@ -45,9 +45,9 @@ function AppRoutes() {
   }
 
   return (
-    <Box sx={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <Box sx={{ width: '100vw', height: '100vh', position: 'relative', display: 'flex' }}>
       <Sidebar />
-      <Box sx={{ width: '100%', height: '100%' }}>
+      <Box sx={{ flexGrow: 1, height: '100%', ml: '60px', width: 'calc(100% - 60px)', overflow: 'auto' }}>
         <Routes>
           <Route path="/" element={<Navigate to="/route" replace />} />
           <Route path="/route" element={<RoutingPage />} />

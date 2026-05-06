@@ -69,7 +69,7 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 4, height: '100%', overflow: 'auto', bgcolor: '#f8fafc' }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto', pb: 8 }}>
       <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold', color: '#1e293b' }}>
         User Management
       </Typography>
