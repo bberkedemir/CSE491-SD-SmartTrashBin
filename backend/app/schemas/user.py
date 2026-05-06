@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     full_name: str
     password: str
+    client_type: Optional[str] = "web"
 
 
 class UserLogin(BaseModel):
