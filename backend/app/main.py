@@ -5,9 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
 from app.models import user, bin, log, token_blacklist
-from app.api import bins, routes, auth, logs, iot, tracking
+from app.api import bins, routes, auth, logs, iot, users, tracking
 from app.api.tracking import cleanup_stale_sessions
-
 
 # Create database tables
 user.Base.metadata.create_all(bind=engine)
@@ -55,6 +54,7 @@ app.include_router(routes.router, prefix=f"{settings.API_V1_STR}/routes", tags=[
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(logs.router, prefix=f"{settings.API_V1_STR}/logs", tags=["logs"])
 app.include_router(iot.router, prefix=f"{settings.API_V1_STR}/iot", tags=["iot"])
+app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(tracking.router, prefix=f"{settings.API_V1_STR}/tracking", tags=["tracking"])
 
 @app.get("/")
