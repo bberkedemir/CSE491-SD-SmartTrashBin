@@ -3,6 +3,7 @@ import glob
 from ultralytics import YOLO
 from pathlib import Path
 import numpy as np
+import csv
 
 # Flag for testing anomalies side by side with original image
 SAVE_SIDE_BY_SIDE_TEST = True
@@ -42,14 +43,17 @@ for video in videos:
     wrt = cv2.VideoWriter(str(vid_output), cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
     print(f"Processing {video} for Tracking and Extraction...")
+    
+    # Dictionary for live counting in the video
+    seen_in_vid = {}
 
     while True:
         ret, frame = capture.read()
         if not ret:
             break
         
-        # get timestamp of frame
-        timestamp = capture.get(cv2.CAP_PROP_POS_MSEC) / 1000
+        # Get timestamp of frame in seconds
+        timestamp_sec = capture.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
 
         # Enable tracking with ByteTrack
         results = model.track(frame, persist=True, tracker="bytetrack.yaml", conf=0.5, verbose=False)
@@ -70,6 +74,11 @@ for video in videos:
                     
                     # Create a unique key for the anomaly
                     anomaly_key = (vid_name, track_id)
+
+                    # Update live tracking counter logic
+                    if class_name not in seen_in_vid:
+                        seen_in_vid[class_name] = set()
+                    seen_in_vid[class_name].add(track_id)
                     
                     # New or better frame
                     if anomaly_key not in best_anomalies or conf > best_anomalies[anomaly_key]['conf']:
@@ -83,28 +92,38 @@ for video in videos:
                         crop = frame[y1:y2, x1:x2]
                         
                         if crop.size > 0:
-                            img_name = f"{vid_name}_{class_name}_id_{track_id}.jpg".replace(" ", "_")
-                            img_path = EXTRACT_DIR / img_name
 
+                            # 1. Dynamic class folders
+                            safe_class_name = class_name.replace(" ", "_")
+                            class_dir = EXTRACT_DIR / safe_class_name
+                            class_dir.mkdir(parents=True, exist_ok=True)
+
+                            img_name = f"{vid_name}_{safe_class_name}_id_{track_id}.jpg"
+                            img_path = class_dir / img_name
+
+                            # Print if new or better confidence
                             if anomaly_key not in best_anomalies:
                                 print(f"Extracted {class_name}: {img_name}")
                             elif conf > best_anomalies[anomaly_key]['conf']:
                                 print(f"Overwriting {class_name}: {img_name}. Old conf: {round(best_anomalies[anomaly_key]['conf'], 3)}, New conf: {round(conf, 3)}")
 
-                            # overwrite if better conf
+                            # 2. Main Extract Save: Overwrite crop iteratively if confidence is higher
                             cv2.imwrite(str(img_path), crop)
 
                             # Update best record
                             best_anomalies[anomaly_key] = {
                                 'conf': conf,
                                 'class_name': class_name,
-                                'timestamp': timestamp,
+                                'timestamp': timestamp_sec,
                                 'path': str(img_path)
                             }
 
-                            
+                            # 3. Side-by-Side Testing Save
                             if SAVE_SIDE_BY_SIDE_TEST:
-                                test_img_path = COMPARE_DIR / img_name
+                                test_class_dir = COMPARE_DIR / safe_class_name
+                                test_class_dir.mkdir(parents=True, exist_ok=True)
+                                test_img_path = test_class_dir / img_name
+
                                 # scale both images
                                 target_h = 720
 
@@ -113,26 +132,49 @@ for video in videos:
                                 resized_frame = cv2.resize(annotated_frame, (int(annotated_frame.shape[1] * s_frame), target_h))
 
 
-                                # box crop
+                                # Bounding box crop
                                 s_crop = target_h / max(1, crop.shape[0])
                                 resized_crop = cv2.resize(crop, (int(crop.shape[1] * s_crop), target_h))
 
                                 side_by_side = np.hstack((resized_frame, resized_crop))
 
-                                # debugging data on merged image
-                                cv2.putText(side_by_side, f"ID: {track_id}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+                                # Debugging data on merged image
+                                cv2.putText(side_by_side, f"ID: {track_id} | Conf: {conf:.2f} | Time: {timestamp_sec:.2f}s", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
                                 cv2.imwrite(str(test_img_path), side_by_side)
-
-
-
+                                print(f"Registered {class_name} [{track_id}] @ {timestamp_sec:.1f}s with Conf {conf:.2f}")
             
-            wrt.write(annotated_frame)
+        # 4. On-Screen Live Counting Rendering
+        y_offset = 40
+        cv2.putText(annotated_frame, "Detected Anomalies:", (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        y_offset += 40
+        for cls_nm, items in seen_in_vid.items():
+            cv2.putText(annotated_frame, f"{cls_nm}: {len(items)}", (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            y_offset += 40
+
+        # Write annotated frame to video
+        wrt.write(annotated_frame)
 
     capture.release()
     wrt.release()
     print(f"Saved Annotated Video: {vid_output}")
 
-print(f"All tracking finished. Check {EXTRACT_DIR} for extracted anomalies.")
+# 5. Detection Logging
+csv_path = OUTPUT_DIR / "detections_report.csv"
+print(f"Generating CSV log report at {csv_path}...")
+
+with open(csv_path, mode="w", newline="", encoding="utf-8") as file:
+    writer = csv.writer(file)
+    writer.writerow(["Video Name", "Track ID", "Class Name", "Max Confidence", "Timestamp (s)", "Saved Image Path"])
+    
+    # Sort keys for nicely ordered CSV output (alphabetically by video name, then numerically sequentially by track ID)
+    for key in sorted(best_anomalies.keys(), key=lambda x: (x[0], x[1])):
+        vid_n, trk_id = key
+        data = best_anomalies[key]
+        writer.writerow([vid_n, trk_id, data['class_name'], f"{data['conf']:.2f}", f"{data['timestamp']:.2f}", data['path']])
+
+
+print(f"All processing complete!")
+print(f"Crops stored in: {EXTRACT_DIR}")
 
 if SAVE_SIDE_BY_SIDE_TEST:
     print(f"Side by side tests stored in: {COMPARE_DIR}")
