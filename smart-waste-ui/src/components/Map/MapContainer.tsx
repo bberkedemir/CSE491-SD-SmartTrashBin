@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import L from 'leaflet';
 import { Box } from '@mui/material';
-import type { BinPoint, NewBinData, RouteStop } from '../../types/bin';
+import type { BinPoint, NewBinData, RouteStop, DriverSession } from '../../types/bin';
 import { useMapMarkers } from './useMapMarkers';
 
 interface MapContainerProps {
@@ -16,6 +16,8 @@ interface MapContainerProps {
     onThrowTrash: (id: number) => Promise<void>;
     onMapReady: (map: L.Map) => void;
     onExitAddMode: () => void;
+    driverSessions?: DriverSession[];
+    getDriverColor?: (driverId: number) => string;
 }
 
 const MapContainer: React.FC<MapContainerProps> = ({
@@ -30,8 +32,10 @@ const MapContainer: React.FC<MapContainerProps> = ({
     onThrowTrash,
     onMapReady,
     onExitAddMode,
+    driverSessions,
+    getDriverColor,
 }) => {
-    const mapRef = useMapMarkers(bins, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onCollectBin, onThrowTrash, onExitAddMode);
+    const mapRef = useMapMarkers(bins, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onCollectBin, onThrowTrash, onExitAddMode, driverSessions, getDriverColor);
 
     // Tell parent when map is ready so route optimization can use it
     useEffect(() => {

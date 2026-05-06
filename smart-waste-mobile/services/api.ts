@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Bin, RouteResponse, CollectionLog, LoginCredentials, RegisterCredentials, TokenResponse, User } from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://192.168.1.24:8000';
+export const API_BASE_URL = 'http://10.93.122.89:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -73,6 +73,12 @@ export const getLogs = async (skip = 0, limit = 50): Promise<CollectionLog[]> =>
   return data.logs;
 };
 
+export interface RouteBinEntry {
+  id: number;
+  title: string;
+  fill_level: number;
+}
+
 export interface RouteCompletedPayload {
   stops_total: number;
   collected: number;
@@ -80,10 +86,46 @@ export interface RouteCompletedPayload {
   distance_km: number;
   estimated_minutes: number;
   elapsed_seconds: number;
+  collected_bins?: RouteBinEntry[];
+  skipped_bins?: RouteBinEntry[];
 }
 
 export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise<void> => {
   await api.post('/api/v1/logs/route-completed', payload);
+};
+
+// Tracking
+export interface TrackingStartPayload {
+  route_stops: RouteResponse['route_sequence'];
+  route_geometry: RouteResponse['route_geometry'];
+  current_lat: number;
+  current_lng: number;
+}
+
+export const startTrackingSession = async (payload: TrackingStartPayload): Promise<void> => {
+  await api.post('/api/v1/tracking/start', payload);
+};
+
+export interface TrackingPositionPayload {
+  lat: number;
+  lng: number;
+  current_stop_index: number;
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+export const updateTrackingPosition = (payload: TrackingPositionPayload): void => {
+  // Fire-and-forget — must not block the GPS callback
+  api.put('/api/v1/tracking/position', payload).catch(() => {});
+};
+
+export interface TrackingCompletePayload {
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+export const completeTrackingSession = async (payload: TrackingCompletePayload): Promise<void> => {
+  await api.post('/api/v1/tracking/complete', payload);
 };
 
 export default api;

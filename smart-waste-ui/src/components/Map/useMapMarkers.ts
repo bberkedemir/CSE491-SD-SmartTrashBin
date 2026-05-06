@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { BinPoint, NewBinData, RouteStop } from '../../types/bin';
+import type { BinPoint, NewBinData, RouteStop, DriverSession } from '../../types/bin';
 import {
     createMarkerPopupHtml,
     createAddMarkerPopupHtml,
@@ -12,7 +12,7 @@ import mapPinCursor from '../../assets/mapPinCursor.png';
 const ADD_MODE_CURSOR = `url(${mapPinCursor}) 16 32, crosshair`;
 
 const MAP_CENTER: L.LatLngExpression = [36.89488259077369, 30.649857090761955];
-const MAP_ZOOM = 13;
+const MAP_ZOOM = 15;
 
 export function useMapMarkers(
     bins: BinPoint[],
@@ -24,12 +24,17 @@ export function useMapMarkers(
     onDeleteBin: (id: number) => Promise<void>,
     onCollectBin: (id: number) => Promise<void>,
     onThrowTrash: (id: number) => Promise<void>,
-    onExitAddMode: () => void
+    onExitAddMode: () => void,
+    driverSessions?: DriverSession[],
+    getDriverColor?: (driverId: number) => string,
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
     const truckMarkerRef = useRef<L.Marker | null>(null);
     const addPopupRef = useRef<L.Popup | null>(null);
+    const driverMarkersRef = useRef<Map<number, L.Marker>>(new Map());
+    const driverPolylinesRef = useRef<Map<number, L.Polyline>>(new Map());
+    const driverCirclesRef = useRef<Map<number, L.Circle[]>>(new Map());
 
     useEffect(() => {
         const mapContainer = document.getElementById('map');
@@ -62,7 +67,7 @@ export function useMapMarkers(
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            minZoom: 16,
+            minZoom: 3,
             attribution:
                 '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(mapRef.current);
@@ -115,8 +120,21 @@ export function useMapMarkers(
                 markersRef.current.push(marker);
             });
         } else {
-            // --- DEFAULT MODE: all bins with delete ---
-            bins.forEach(bin => {
+            // --- DEFAULT MODE: bins with popups ---
+            // When driver sessions are active, only show bins included in those routes
+            const driverBinIds = driverSessions && driverSessions.length > 0
+                ? new Set(
+                    driverSessions.flatMap(s =>
+                        s.route_stops.filter(r => r.type === 'pickup').map(r => r.id)
+                    )
+                  )
+                : null;
+
+            const visibleBins = driverBinIds
+                ? bins.filter(b => driverBinIds.has(b.id))
+                : bins;
+
+            visibleBins.forEach(bin => {
                 const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.getBinIcon(bin.fill) })
                     .addTo(mapRef.current!)
                     .bindPopup(createMarkerPopupHtml(bin));
@@ -164,7 +182,7 @@ export function useMapMarkers(
                 markersRef.current.push(marker);
             });
         }
-    }, [bins, routeStops, onDeleteBin, onCollectBin, onThrowTrash]);
+    }, [bins, routeStops, driverSessions, onDeleteBin, onCollectBin, onThrowTrash]);
 
     // Handle add-mode click
     useEffect(() => {
@@ -232,6 +250,87 @@ export function useMapMarkers(
             mapRef.current?.off('popupclose', onPopupClose);
         };
     }, [isAddMode, onCreateBin, onExitAddMode]);
+
+    // Render live driver trucks, route polylines, and collected-bin overlays
+    useEffect(() => {
+        if (!mapRef.current) return;
+        const map = mapRef.current;
+        const sessions = driverSessions ?? [];
+        const activeIds = new Set(sessions.map(s => s.driver_id));
+
+        // Remove layers for sessions that ended
+        driverMarkersRef.current.forEach((marker, id) => {
+            if (!activeIds.has(id)) { marker.remove(); driverMarkersRef.current.delete(id); }
+        });
+        driverPolylinesRef.current.forEach((poly, id) => {
+            if (!activeIds.has(id)) { poly.remove(); driverPolylinesRef.current.delete(id); }
+        });
+        driverCirclesRef.current.forEach((circles, id) => {
+            if (!activeIds.has(id)) { circles.forEach(c => c.remove()); driverCirclesRef.current.delete(id); }
+        });
+
+        sessions.forEach(session => {
+            const color = getDriverColor ? getDriverColor(session.driver_id) : '#e53935';
+            const pickupStops = session.route_stops.filter(s => s.type === 'pickup');
+            const done = session.collected_ids.length + session.skipped_ids.length;
+            const popupHtml = `
+                <b>${session.driver_full_name}</b><br>
+                Progress: ${done}/${pickupStops.length} stops<br>
+                Collected: ${session.collected_ids.length} &nbsp;|&nbsp; Skipped: ${session.skipped_ids.length}
+            `;
+
+            const driverIcon = L.divIcon({
+                className: '',
+                html: `<div style="background:${color};border:3px solid white;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.45)">🚛</div>`,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
+                popupAnchor: [0, -18],
+            });
+
+            // Truck marker — update position if exists, otherwise create
+            const existing = driverMarkersRef.current.get(session.driver_id);
+            if (existing) {
+                existing.setLatLng([session.lat, session.lng]);
+                existing.setPopupContent(popupHtml);
+            } else {
+                const marker = L.marker([session.lat, session.lng], { icon: driverIcon })
+                    .addTo(map)
+                    .bindPopup(popupHtml);
+                driverMarkersRef.current.set(session.driver_id, marker);
+            }
+
+            // Route polyline — rebuild every update (geometry doesn't change often)
+            const oldPoly = driverPolylinesRef.current.get(session.driver_id);
+            if (oldPoly) oldPoly.remove();
+            if (session.route_geometry.length > 0) {
+                const poly = L.polyline(session.route_geometry as L.LatLngExpression[], {
+                    color,
+                    weight: 4,
+                    opacity: 0.75,
+                    dashArray: '8, 6',
+                }).addTo(map);
+                driverPolylinesRef.current.set(session.driver_id, poly);
+            }
+
+            // Collected-bin green circles
+            const oldCircles = driverCirclesRef.current.get(session.driver_id) ?? [];
+            oldCircles.forEach(c => c.remove());
+            const circles: L.Circle[] = [];
+            session.route_stops
+                .filter(s => s.type === 'pickup' && session.collected_ids.includes(s.id))
+                .forEach(stop => {
+                    const circle = L.circle([stop.lat, stop.lng], {
+                        radius: 14,
+                        color: '#2e7d32',
+                        fillColor: '#2e7d32',
+                        fillOpacity: 0.45,
+                        weight: 2,
+                    }).addTo(map).bindTooltip(`Collected: ${stop.title}`);
+                    circles.push(circle);
+                });
+            driverCirclesRef.current.set(session.driver_id, circles);
+        });
+    }, [driverSessions, getDriverColor]);
 
     return mapRef;
 }

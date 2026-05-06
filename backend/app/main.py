@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -12,11 +14,29 @@ bin.Base.metadata.create_all(bind=engine)
 log.Base.metadata.create_all(bind=engine)
 token_blacklist.Base.metadata.create_all(bind=engine)
 
+
+def _run_migrations() -> None:
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        cols = [c["name"] for c in inspect(engine).get_columns("collection_logs")]
+        if "performed_by" not in cols:
+            conn.execute(text("ALTER TABLE collection_logs ADD COLUMN performed_by VARCHAR"))
+            conn.commit()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _run_migrations()
+    asyncio.create_task(cleanup_stale_sessions())
+    yield
+
+
 app = FastAPI(
     title="Smart Waste Bin API",
     description="API for managing smart waste bin locations and fill levels",
     version="1.0.0",
-    debug=settings.DEBUG
+    debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 
 # Configure CORS
