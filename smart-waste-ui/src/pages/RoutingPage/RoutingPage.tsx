@@ -13,6 +13,8 @@ import { binApi } from '../../api/binApi';
 import type { AppNotification, DriverSession } from '../../types/bin';
 import AlgorithmComparisonModal from '../../components/Map/AlgorithmComparisonModal';
 
+const COLLECTION_THRESHOLD = 30;
+
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData } = useBins();
   const [isAddMode, setIsAddMode] = useState(false);
@@ -225,6 +227,7 @@ const RoutingPage: React.FC = () => {
           onExitAddMode={handleExitAddMode}
           driverSessions={driverSessions}
           getDriverColor={boundGetColor}
+          threshold={COLLECTION_THRESHOLD}
         />
         <DriverPanel
           sessions={driverSessions}
@@ -416,7 +419,7 @@ const RoutingPage: React.FC = () => {
             if (isRouteActive) {
                 clearRoute();
             } else {
-                const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+                const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'default');
                 if (success) {
                     setLastUpdatePosition(truckPosition);
                 }
@@ -470,7 +473,7 @@ const RoutingPage: React.FC = () => {
         <MenuItem onClick={() => { 
           handleOptimizeMenuClose(); 
           setTimeout(async () => {
-            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+            const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'default');
             if (success) setLastUpdatePosition(truckPosition);
           }, 0);
         }}>
@@ -479,7 +482,7 @@ const RoutingPage: React.FC = () => {
         <MenuItem onClick={() => { 
           handleOptimizeMenuClose(); 
           setTimeout(async () => {
-            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'greedy');
+            const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'greedy');
             if (success) setLastUpdatePosition(truckPosition);
           }, 0);
         }}>
@@ -496,7 +499,7 @@ const RoutingPage: React.FC = () => {
       <AlgorithmComparisonModal
         open={isCompareModalOpen}
         onClose={() => setIsCompareModalOpen(false)}
-        threshold={30}
+        threshold={COLLECTION_THRESHOLD}
         startLat={truckPosition[0]}
         startLng={truckPosition[1]}
       />

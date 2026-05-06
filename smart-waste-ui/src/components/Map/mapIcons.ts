@@ -3,12 +3,12 @@ import truckImg from '../../assets/truck.png';
 import depotImg from '../../assets/marker-icon-2x-red.png';
 import depotShadow from '../../assets/marker-shadow.png';
 
-export const getBinIcon = (fillLevel: number) => {
+export const getBinIcon = (fillLevel: number, threshold: number = 30) => {
     let color = '#2ed573'; // Green
-    if (fillLevel >= 50 && fillLevel < 80) {
-        color = '#ffa502'; // Orange
-    } else if (fillLevel >= 80) {
+    if (fillLevel >= 80) {
         color = '#ff4757'; // Red
+    } else if (fillLevel >= threshold) {
+        color = '#ffa502'; // Orange
     }
 
     const svg = `
