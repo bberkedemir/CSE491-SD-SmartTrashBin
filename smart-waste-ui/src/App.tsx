@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import LogsPage from './pages/LogsPage/LogsPage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
+import UsersPage from './pages/UsersPage/UsersPage';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/route" element={<RoutingPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/logs" element={<LogsPage />} />
+          <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<Navigate to="/route" replace />} />
         </Routes>
       </Box>
