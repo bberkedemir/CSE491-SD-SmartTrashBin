@@ -26,7 +26,8 @@ export const login = async (credentials: LoginCredentials): Promise<TokenRespons
 };
 
 export const register = async (credentials: RegisterCredentials): Promise<TokenResponse> => {
-  const { data } = await api.post<TokenResponse>('/api/v1/auth/register', credentials);
+  const payload = { ...credentials, client_type: 'mobile' };
+  const { data } = await api.post<TokenResponse>('/api/v1/auth/register', payload);
   return data;
 };
 
