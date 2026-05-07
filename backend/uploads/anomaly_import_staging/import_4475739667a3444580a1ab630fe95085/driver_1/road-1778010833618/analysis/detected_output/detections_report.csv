@@ -1,0 +1,5 @@
+Video Name,Track ID,Class Name,Max Confidence,Timestamp (s),Saved Image Path
+video,2,Pothole,0.64,56.96,C:\Users\WestM\Desktop\CSE491-SD-SmartTrashBin\backend\uploads\anomaly_sessions\driver_1\road-1778010833618\analysis\extracted_anomalies\Pothole\video_Pothole_id_2.jpg
+video,5,Pothole,0.81,169.56,C:\Users\WestM\Desktop\CSE491-SD-SmartTrashBin\backend\uploads\anomaly_sessions\driver_1\road-1778010833618\analysis\extracted_anomalies\Pothole\video_Pothole_id_5.jpg
+video,9,longitudinal crack,0.56,222.39,C:\Users\WestM\Desktop\CSE491-SD-SmartTrashBin\backend\uploads\anomaly_sessions\driver_1\road-1778010833618\analysis\extracted_anomalies\longitudinal_crack\video_longitudinal_crack_id_9.jpg
+video,14,alligator crack,0.85,306.41,C:\Users\WestM\Desktop\CSE491-SD-SmartTrashBin\backend\uploads\anomaly_sessions\driver_1\road-1778010833618\analysis\extracted_anomalies\alligator_crack\video_alligator_crack_id_14.jpg

@@ -1,4 +1,10 @@
-import type { AnomalyImportRequest, AnomalyImportResponse, RoadAnomaly, RoadAnomalyList } from '../types/bin';
+import type {
+    AnomalyImportRequest,
+    AnomalyImportResponse,
+    RoadAnomaly,
+    RoadAnomalyList,
+    RoadAnomalyStatus,
+} from '../types/bin';
 
 const API_BASE = '/api/v1';
 
@@ -39,6 +45,28 @@ export const anomalyApi = {
             throw new Error('Failed to fetch anomaly logs');
         }
         return response.json() as Promise<RoadAnomalyList>;
+    },
+
+    async updateStatus(anomalyId: number, status: RoadAnomalyStatus): Promise<RoadAnomaly> {
+        const response = await fetch(`${API_BASE}/anomalies/${anomalyId}/status`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ status }),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to update anomaly status');
+        }
+        return response.json() as Promise<RoadAnomaly>;
+    },
+
+    async delete(anomalyId: number): Promise<void> {
+        const response = await fetch(`${API_BASE}/anomalies/${anomalyId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to delete anomaly');
+        }
     },
 
     async importExisting(payload: AnomalyImportRequest): Promise<AnomalyImportResponse> {

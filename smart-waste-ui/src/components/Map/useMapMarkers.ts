@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly } from '../../types/bin';
+import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly, RoadAnomalyStatus } from '../../types/bin';
 import type { Truck } from '../../types/truck';
 import {
     createMarkerPopupHtml,
@@ -27,6 +27,8 @@ export function useMapMarkers(
     onDeleteBin: (id: number) => Promise<void>,
     onCollectBin: (id: number) => Promise<void>,
     onThrowTrash: (id: number) => Promise<void>,
+    onDeleteAnomaly: (id: number) => Promise<void>,
+    onUpdateAnomalyStatus: (id: number, status: RoadAnomalyStatus) => Promise<void>,
     onExitAddMode: () => void,
     driverSessions?: DriverSession[],
     getDriverColor?: (driverId: number) => string,
@@ -207,8 +209,35 @@ export function useMapMarkers(
                 .bindPopup(createRoadAnomalyPopupHtml(anomaly));
 
             anomalyMarkersRef.current.push(marker);
+
+            marker.on('popupopen', () => {
+                const deleteBtn = document.getElementById(`anomaly-del-${anomaly.id}`);
+                if (deleteBtn) {
+                    deleteBtn.onclick = async () => {
+                        try {
+                            await onDeleteAnomaly(anomaly.id);
+                            marker.remove();
+                        } catch (error) {
+                            console.error('Failed to delete road anomaly:', error);
+                        }
+                    };
+                }
+
+                const statusSelect = document.getElementById(`anomaly-status-${anomaly.id}`) as HTMLSelectElement | null;
+                if (statusSelect) {
+                    statusSelect.onchange = async () => {
+                        const nextStatus = statusSelect.value as RoadAnomalyStatus;
+                        try {
+                            await onUpdateAnomalyStatus(anomaly.id, nextStatus);
+                        } catch (error) {
+                            statusSelect.value = anomaly.status;
+                            console.error('Failed to update road anomaly status:', error);
+                        }
+                    };
+                }
+            });
         });
-    }, [roadAnomalies]);
+    }, [roadAnomalies, onDeleteAnomaly, onUpdateAnomalyStatus]);
 
     // Handle add-mode click
     useEffect(() => {

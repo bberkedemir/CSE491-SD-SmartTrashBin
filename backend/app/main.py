@@ -27,9 +27,14 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 def _run_migrations() -> None:
     from sqlalchemy import text, inspect
     with engine.connect() as conn:
-        cols = [c["name"] for c in inspect(engine).get_columns("collection_logs")]
-        if "performed_by" not in cols:
+        inspector = inspect(engine)
+        log_cols = [c["name"] for c in inspector.get_columns("collection_logs")]
+        if "performed_by" not in log_cols:
             conn.execute(text("ALTER TABLE collection_logs ADD COLUMN performed_by VARCHAR"))
+            conn.commit()
+        anomaly_cols = [c["name"] for c in inspector.get_columns("road_anomalies")]
+        if "status" not in anomaly_cols:
+            conn.execute(text("ALTER TABLE road_anomalies ADD COLUMN status VARCHAR NOT NULL DEFAULT 'default'"))
             conn.commit()
 
 

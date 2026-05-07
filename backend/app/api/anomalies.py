@@ -21,6 +21,7 @@ from app.schemas.anomaly import (
     AnomalyUploadResponse,
     RoadAnomalyList,
     RoadAnomalyResponse,
+    RoadAnomalyStatusUpdate,
 )
 from app.services.anomaly_analysis import analyze_upload, import_existing_analysis
 
@@ -376,3 +377,36 @@ def list_map_anomalies(
         ],
         total=query.count(),
     )
+
+
+@router.patch("/{anomaly_id}/status", response_model=RoadAnomalyResponse)
+def update_anomaly_status(
+    anomaly_id: int,
+    payload: RoadAnomalyStatusUpdate,
+    _current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    anomaly = db.query(RoadAnomaly).filter(RoadAnomaly.id == anomaly_id).first()
+    if anomaly is None:
+        raise HTTPException(status_code=404, detail="Road anomaly not found")
+
+    anomaly.status = payload.status
+    db.commit()
+    db.refresh(anomaly)
+
+    driver = db.query(User).filter(User.id == anomaly.driver_id).first() if anomaly.driver_id else None
+    return to_road_anomaly_response(anomaly, driver)
+
+
+@router.delete("/{anomaly_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_anomaly(
+    anomaly_id: int,
+    _current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    anomaly = db.query(RoadAnomaly).filter(RoadAnomaly.id == anomaly_id).first()
+    if anomaly is None:
+        raise HTTPException(status_code=404, detail="Road anomaly not found")
+
+    db.delete(anomaly)
+    db.commit()

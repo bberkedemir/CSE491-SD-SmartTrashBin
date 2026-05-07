@@ -137,6 +137,36 @@ body,
   font-size: 13px;
 }
 
+.road-anomaly-popup-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.road-anomaly-status-select {
+  min-width: 136px;
+  height: 34px;
+  border: 1px solid #d1c4e9;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #4a148c;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.road-anomaly-status-select:focus {
+  border-color: #7b1fa2;
+  outline: none;
+}
+
+.road-anomaly-delete-btn {
+  width: auto;
+  height: 34px;
+  padding: 0 12px;
+}
+
 /* === Add Marker Popup === */
 .popup-container {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

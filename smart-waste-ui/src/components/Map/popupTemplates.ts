@@ -1,5 +1,11 @@
 import type { BinPoint, RoadAnomaly, RouteStop } from "../../types/bin";
 
+export function roadAnomalyStatusLabel(status: RoadAnomaly['status']): string {
+  if (status === 'needs_repair') return 'Needs Repair';
+  if (status === 'repaired') return 'Repaired';
+  return 'Default';
+}
+
 export function createMarkerPopupHtml(data: BinPoint): string {
   return `
     <div class="marker-popup">
@@ -84,6 +90,10 @@ export function createRoadAnomalyPopupHtml(anomaly: RoadAnomaly): string {
           <span class="marker-popup-value">${anomaly.timestamp_seconds.toFixed(1)}s</span>
         </div>
         <div class="marker-popup-row">
+          <span class="marker-popup-label">Status:</span>
+          <span class="marker-popup-value">${roadAnomalyStatusLabel(anomaly.status)}</span>
+        </div>
+        <div class="marker-popup-row">
           <span class="marker-popup-label">Latitude:</span>
           <span class="marker-popup-value">${anomaly.latitude?.toFixed(5) ?? '-'}</span>
         </div>
@@ -91,6 +101,16 @@ export function createRoadAnomalyPopupHtml(anomaly: RoadAnomaly): string {
           <span class="marker-popup-label">Longitude:</span>
           <span class="marker-popup-value">${anomaly.longitude?.toFixed(5) ?? '-'}</span>
         </div>
+      </div>
+      <div class="road-anomaly-popup-actions">
+        <select id="anomaly-status-${anomaly.id}" class="road-anomaly-status-select" aria-label="Road anomaly status">
+          <option value="default" ${anomaly.status === 'default' ? 'selected' : ''}>Default</option>
+          <option value="needs_repair" ${anomaly.status === 'needs_repair' ? 'selected' : ''}>Needs Repair</option>
+          <option value="repaired" ${anomaly.status === 'repaired' ? 'selected' : ''}>Repaired</option>
+        </select>
+        <button id="anomaly-del-${anomaly.id}" class="marker-delete-btn road-anomaly-delete-btn">
+          Delete
+        </button>
       </div>
     </div>
   `;

@@ -44,6 +44,7 @@ export interface RoadAnomaly {
     confidence: number;
     timestamp_seconds: number;
     image_path: string;
+    status: RoadAnomalyStatus;
     image_url: string | null;
     latitude: number | null;
     longitude: number | null;
@@ -57,6 +58,8 @@ export interface RoadAnomalyList {
     anomalies: RoadAnomaly[];
     total: number;
 }
+
+export type RoadAnomalyStatus = 'default' | 'needs_repair' | 'repaired';
 
 export interface AnomalyImportRequest {
     source_path: string;

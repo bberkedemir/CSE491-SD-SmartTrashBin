@@ -16,7 +16,7 @@ import type {
 } from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://10.93.122.89:8000';
+export const API_BASE_URL = 'http://10.105.126.189:8000';
 
 //export const API_BASE_URL = 'https://arise-deprive-disobey.ngrok-free.dev';
 
@@ -186,7 +186,7 @@ export interface TrackingPositionPayload {
 }
 
 export const updateTrackingPosition = (payload: TrackingPositionPayload): Promise<void> => {
-  return api.put('/api/v1/tracking/position', payload).then(() => {});
+  return api.put('/api/v1/tracking/position', payload).then(() => { });
 };
 
 export interface TrackingCompletePayload {

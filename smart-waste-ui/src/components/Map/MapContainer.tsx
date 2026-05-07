@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import L from 'leaflet';
 import { Box } from '@mui/material';
-import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly } from '../../types/bin';
+import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly, RoadAnomalyStatus } from '../../types/bin';
 import type { Truck } from '../../types/truck';
 import { useMapMarkers } from './useMapMarkers';
 
@@ -16,6 +16,8 @@ interface MapContainerProps {
     onDeleteBin: (id: number) => Promise<void>;
     onCollectBin: (id: number) => Promise<void>;
     onThrowTrash: (id: number) => Promise<void>;
+    onDeleteAnomaly: (id: number) => Promise<void>;
+    onUpdateAnomalyStatus: (id: number, status: RoadAnomalyStatus) => Promise<void>;
     onMapReady: (map: L.Map) => void;
     onExitAddMode: () => void;
     driverSessions?: DriverSession[];
@@ -35,6 +37,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
     onDeleteBin,
     onCollectBin,
     onThrowTrash,
+    onDeleteAnomaly,
+    onUpdateAnomalyStatus,
     onMapReady,
     onExitAddMode,
     driverSessions,
@@ -42,7 +46,25 @@ const MapContainer: React.FC<MapContainerProps> = ({
     threshold = 30,
     driverTrucks,
 }) => {
-    const mapRef = useMapMarkers(bins, roadAnomalies, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onCollectBin, onThrowTrash, onExitAddMode, driverSessions, getDriverColor, threshold, driverTrucks);
+    const mapRef = useMapMarkers(
+        bins,
+        roadAnomalies,
+        routeStops,
+        isAddMode,
+        truckPosition,
+        onTruckMove,
+        onCreateBin,
+        onDeleteBin,
+        onCollectBin,
+        onThrowTrash,
+        onDeleteAnomaly,
+        onUpdateAnomalyStatus,
+        onExitAddMode,
+        driverSessions,
+        getDriverColor,
+        threshold,
+        driverTrucks
+    );
 
     // Tell parent when map is ready so route optimization can use it
     useEffect(() => {
