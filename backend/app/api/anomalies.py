@@ -100,13 +100,23 @@ def video_suffix(filename: str | None) -> str:
 
 
 def anomaly_image_url(image_path: str) -> str | None:
-    uploads_root = BACKEND_ROOT / "uploads"
+    if not image_path:
+        return None
     path = Path(image_path)
+    # Try exact match against current uploads root first
+    uploads_root = BACKEND_ROOT / "uploads"
     try:
         relative = path.relative_to(uploads_root)
+        return f"/uploads/{relative.as_posix()}"
     except ValueError:
-        return None
-    return f"/uploads/{relative.as_posix()}"
+        pass
+    # Fall back: find the "uploads" segment regardless of the absolute prefix
+    # (handles paths saved on a different machine or with a different install path)
+    parts = path.parts
+    for i, part in enumerate(parts):
+        if part == "uploads" and i + 1 < len(parts):
+            return "/uploads/" + "/".join(parts[i + 1:])
+    return None
 
 
 def driver_response_fields(driver: User | None) -> dict[str, str | None]:
