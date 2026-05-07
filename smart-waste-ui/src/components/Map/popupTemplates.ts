@@ -1,4 +1,4 @@
-import type { BinPoint, RouteStop } from "../../types/bin";
+import type { BinPoint, RoadAnomaly, RouteStop } from "../../types/bin";
 
 export function createMarkerPopupHtml(data: BinPoint): string {
   return `
@@ -59,4 +59,39 @@ export function createRouteStopPopupHtml(stop: RouteStop): string {
     return `<b>Depot (Start/End)</b><br>${stop.title}`;
   }
   return `<b>Stop #${stop.sequence}</b><br>${stop.title}<br>Fill: ${stop.fill_level}%`;
+}
+
+export function createRoadAnomalyPopupHtml(anomaly: RoadAnomaly): string {
+  const imageHtml = anomaly.image_url
+    ? `<img class="road-anomaly-popup-image" src="${anomaly.image_url}" alt="Road anomaly crop" />`
+    : `<div class="road-anomaly-popup-empty">No image available</div>`;
+
+  return `
+    <div class="road-anomaly-popup">
+      <div class="road-anomaly-popup-title">Road Anomaly</div>
+      ${imageHtml}
+      <div class="marker-popup-details">
+        <div class="marker-popup-row">
+          <span class="marker-popup-label">Class:</span>
+          <span class="marker-popup-value">${anomaly.class_name}</span>
+        </div>
+        <div class="marker-popup-row">
+          <span class="marker-popup-label">Confidence:</span>
+          <span class="marker-popup-value">${Math.round(anomaly.confidence * 100)}%</span>
+        </div>
+        <div class="marker-popup-row">
+          <span class="marker-popup-label">Video time:</span>
+          <span class="marker-popup-value">${anomaly.timestamp_seconds.toFixed(1)}s</span>
+        </div>
+        <div class="marker-popup-row">
+          <span class="marker-popup-label">Latitude:</span>
+          <span class="marker-popup-value">${anomaly.latitude?.toFixed(5) ?? '-'}</span>
+        </div>
+        <div class="marker-popup-row">
+          <span class="marker-popup-label">Longitude:</span>
+          <span class="marker-popup-value">${anomaly.longitude?.toFixed(5) ?? '-'}</span>
+        </div>
+      </div>
+    </div>
+  `;
 }

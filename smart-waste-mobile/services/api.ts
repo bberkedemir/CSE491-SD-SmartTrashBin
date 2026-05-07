@@ -1,9 +1,25 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Bin, RouteResponse, CollectionLog, LoginCredentials, RegisterCredentials, TokenResponse, User } from '../types';
+import type {
+  AnomalyCaptureSession,
+  AnomalyUploadList,
+  AnomalyUploadResponse,
+  Bin,
+  RoadAnomaly,
+  RoadAnomalyList,
+  RouteResponse,
+  CollectionLog,
+  LoginCredentials,
+  RegisterCredentials,
+  TokenResponse,
+  User,
+} from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://10.93.122.89:8000';
+export const API_BASE_URL = 'http://10.105.126.189:8000';
+
+//export const API_BASE_URL = 'https://arise-deprive-disobey.ngrok-free.dev';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -94,6 +110,60 @@ export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise
   await api.post('/api/v1/logs/route-completed', payload);
 };
 
+// Road anomaly uploads
+const ANOMALY_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
+export const uploadAnomalySession = async (
+  session: AnomalyCaptureSession,
+  onProgress?: (progress: number) => void
+): Promise<AnomalyUploadResponse> => {
+  const formData = new FormData();
+  formData.append('session_id', session.sessionId);
+  formData.append('started_at', session.startedAt);
+  formData.append('ended_at', session.endedAt);
+  formData.append('point_count', String(session.pointCount));
+  formData.append('duration_seconds', String(session.durationSeconds));
+  formData.append('video', {
+    uri: session.videoUri,
+    name: `${session.sessionId}.mp4`,
+    type: 'video/mp4',
+  } as any);
+  formData.append('gps_log', {
+    uri: session.gpsLogUri,
+    name: `${session.sessionId}-gps.json`,
+    type: 'application/json',
+  } as any);
+
+  const { data } = await api.post<AnomalyUploadResponse>(
+    '/api/v1/anomalies/uploads',
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: ANOMALY_UPLOAD_TIMEOUT_MS,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      onUploadProgress: (event) => {
+        if (!event.total) return;
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      },
+    }
+  );
+  return data;
+};
+
+export const getAnomalyUploads = async (skip = 0, limit = 50): Promise<AnomalyUploadResponse[]> => {
+  const { data } = await api.get<AnomalyUploadList>('/api/v1/anomalies/uploads', {
+    params: { skip, limit },
+  });
+  return data.uploads;
+};
+
+export const getRoadAnomalies = async (skip = 0, limit = 500): Promise<RoadAnomaly[]> => {
+  const { data } = await api.get<RoadAnomalyList>('/api/v1/anomalies/map', {
+    params: { skip, limit },
+  });
+  return data.anomalies;
+}
 // Tracking
 export interface TrackingStartPayload {
   route_stops: RouteResponse['route_sequence'];
@@ -101,6 +171,7 @@ export interface TrackingStartPayload {
   current_lat: number;
   current_lng: number;
 }
+
 
 export const startTrackingSession = async (payload: TrackingStartPayload): Promise<void> => {
   await api.post('/api/v1/tracking/start', payload);
@@ -116,7 +187,7 @@ export interface TrackingPositionPayload {
 
 export const updateTrackingPosition = (payload: TrackingPositionPayload): void => {
   // Fire-and-forget — must not block the GPS callback
-  api.put('/api/v1/tracking/position', payload).catch(() => {});
+  api.put('/api/v1/tracking/position', payload).catch(() => { });
 };
 
 export interface TrackingCompletePayload {
@@ -127,5 +198,20 @@ export interface TrackingCompletePayload {
 export const completeTrackingSession = async (payload: TrackingCompletePayload): Promise<void> => {
   await api.post('/api/v1/tracking/complete', payload);
 };
+
+// Tracking
+export interface TrackingStartPayload {
+  route_stops: RouteResponse['route_sequence'];
+  route_geometry: RouteResponse['route_geometry'];
+  current_lat: number;
+  current_lng: number;
+}
+
+export interface TrackingCompletePayload {
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+
 
 export default api;

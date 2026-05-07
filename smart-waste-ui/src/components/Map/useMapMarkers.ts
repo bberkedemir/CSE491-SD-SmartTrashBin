@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { BinPoint, NewBinData, RouteStop, DriverSession } from '../../types/bin';
+import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly } from '../../types/bin';
 import {
     createMarkerPopupHtml,
     createAddMarkerPopupHtml,
     createRouteStopPopupHtml,
+    createRoadAnomalyPopupHtml,
 } from './popupTemplates';
 import * as mapIcons from './mapIcons';
 import mapPinCursor from '../../assets/mapPinCursor.png';
@@ -16,6 +17,7 @@ const MAP_ZOOM = 15;
 
 export function useMapMarkers(
     bins: BinPoint[],
+    roadAnomalies: RoadAnomaly[],
     routeStops: RouteStop[] | null,
     isAddMode: boolean,
     truckPosition: [number, number],
@@ -31,6 +33,7 @@ export function useMapMarkers(
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
+    const anomalyMarkersRef = useRef<L.Marker[]>([]);
     const truckMarkerRef = useRef<L.Marker | null>(null);
     const addPopupRef = useRef<L.Popup | null>(null);
     const driverMarkersRef = useRef<Map<number, L.Marker>>(new Map());
@@ -128,7 +131,7 @@ export function useMapMarkers(
                     driverSessions.flatMap(s =>
                         s.route_stops.filter(r => r.type === 'pickup').map(r => r.id)
                     )
-                  )
+                )
                 : null;
 
             const visibleBins = driverBinIds
@@ -184,6 +187,26 @@ export function useMapMarkers(
             });
         }
     }, [bins, routeStops, driverSessions, onDeleteBin, onCollectBin, onThrowTrash]);
+
+    useEffect(() => {
+        if (!mapRef.current) return;
+
+        anomalyMarkersRef.current.forEach(marker => marker.remove());
+        anomalyMarkersRef.current = [];
+
+        roadAnomalies.forEach(anomaly => {
+            if (anomaly.latitude === null || anomaly.longitude === null) return;
+
+            const marker = L.marker([anomaly.latitude, anomaly.longitude], {
+                icon: mapIcons.roadAnomalyIcon,
+                zIndexOffset: 700,
+            })
+                .addTo(mapRef.current!)
+                .bindPopup(createRoadAnomalyPopupHtml(anomaly));
+
+            anomalyMarkersRef.current.push(marker);
+        });
+    }, [roadAnomalies]);
 
     // Handle add-mode click
     useEffect(() => {

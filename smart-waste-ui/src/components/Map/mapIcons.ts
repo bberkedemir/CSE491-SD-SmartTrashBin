@@ -50,3 +50,15 @@ export const numberedIcon = (num: number) =>
         iconSize: [30, 30],
         iconAnchor: [15, 15],
     });
+
+export const roadAnomalyIcon = L.divIcon({
+    className: 'road-anomaly-icon',
+    html: `
+        <div class="road-anomaly-marker">
+            <span>!</span>
+        </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18],
+});

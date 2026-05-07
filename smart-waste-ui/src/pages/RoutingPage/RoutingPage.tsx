@@ -5,6 +5,7 @@ import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
 import { DriverPanel } from '../../components/DriverPanel/DriverPanel';
 import { useBins } from '../../hooks/useBins';
+import { useRoadAnomalies } from '../../hooks/useRoadAnomalies';
 import { useRouteOptimization } from '../../hooks/useRouteOptimization';
 import { useDriverTracking } from '../../hooks/useDriverTracking';
 import { calculateDistanceMeters } from '../../utils/geoUtils';
@@ -17,6 +18,7 @@ const COLLECTION_THRESHOLD = 30;
 
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData } = useBins();
+  const { roadAnomalies, fetchRoadAnomalies } = useRoadAnomalies();
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
@@ -127,9 +129,13 @@ const RoutingPage: React.FC = () => {
 
   useEffect(() => {
     fetchBins();
-    const interval = setInterval(fetchBins, 10000); // Auto-refresh every 10s
+    fetchRoadAnomalies();
+    const interval = setInterval(() => {
+      fetchBins();
+      fetchRoadAnomalies();
+    }, 10000); // Auto-refresh every 10s
     return () => clearInterval(interval);
-  }, [fetchBins]);
+  }, [fetchBins, fetchRoadAnomalies]);
 
   // Effect: Recalculate route if truck moves more than 10 meters locally
   useEffect(() => {
@@ -215,6 +221,7 @@ const RoutingPage: React.FC = () => {
         </Box>
         <MapContainer
           bins={bins}
+          roadAnomalies={roadAnomalies}
           routeStops={routeStops}
           isAddMode={isAddMode}
           truckPosition={truckPosition}
