@@ -25,6 +25,27 @@ class AnomalyUploadList(BaseModel):
     total: int
 
 
+class AnomalyImportRequest(BaseModel):
+    source_path: str
+    driver_id: int | None = None
+    session_id: str | None = None
+    copy_images: bool = True
+
+
+class AnomalyImportItem(BaseModel):
+    upload: AnomalyUploadResponse
+    imported_count: int
+    skipped_count: int
+    source_report_path: str
+
+
+class AnomalyImportResponse(BaseModel):
+    imports: list[AnomalyImportItem]
+    total_imported: int
+    total_skipped: int
+    message: str
+
+
 class RoadAnomalyResponse(BaseModel):
     id: int
     upload_id: int

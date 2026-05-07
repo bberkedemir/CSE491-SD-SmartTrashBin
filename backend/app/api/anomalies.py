@@ -1,19 +1,28 @@
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
+from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.core.auth_dependency import get_current_user
+from app.core.auth_dependency import get_current_admin_user, get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.anomaly_upload import AnomalyUpload
 from app.models.road_anomaly import RoadAnomaly
 from app.models.user import User
-from app.schemas.anomaly import AnomalyUploadList, AnomalyUploadResponse, RoadAnomalyList, RoadAnomalyResponse
-from app.services.anomaly_analysis import analyze_upload
+from app.schemas.anomaly import (
+    AnomalyImportItem,
+    AnomalyImportRequest,
+    AnomalyImportResponse,
+    AnomalyUploadList,
+    AnomalyUploadResponse,
+    RoadAnomalyList,
+    RoadAnomalyResponse,
+)
+from app.services.anomaly_analysis import analyze_upload, import_existing_analysis
 
 
 router = APIRouter()
@@ -57,6 +66,29 @@ async def save_upload_file(upload_file: UploadFile, destination: Path) -> int:
             output.write(chunk)
     await upload_file.close()
     return total_bytes
+
+
+def safe_import_relative_path(filename: str | None) -> Path:
+    normalized = (filename or "file").replace("\\", "/")
+    parts: list[str] = []
+    for part in PurePosixPath(normalized).parts:
+        if part in {"", ".", ".."}:
+            continue
+        cleaned = re.sub(r"[^A-Za-z0-9_. -]", "_", part.strip()).strip()
+        parts.append((cleaned or "file")[:120])
+    return Path(*parts) if parts else Path("file")
+
+
+def is_relevant_import_file(relative_path: Path) -> bool:
+    path_text = relative_path.as_posix().lower()
+    suffix = relative_path.suffix.lower()
+    if path_text.endswith("detections_report.csv"):
+        return True
+    if "gps" in path_text and suffix in {".json", ".csv"}:
+        return True
+    if "extracted_anomalies" in path_text and suffix in {".jpg", ".jpeg", ".png", ".webp"}:
+        return True
+    return False
 
 
 def video_suffix(filename: str | None) -> str:
@@ -166,6 +198,115 @@ def list_anomaly_uploads(
     query = db.query(AnomalyUpload).filter(AnomalyUpload.driver_id == current_user.id)
     uploads = query.order_by(desc(AnomalyUpload.created_at)).offset(skip).limit(limit).all()
     return AnomalyUploadList(uploads=uploads, total=query.count())
+
+
+@router.post("/import-existing", response_model=AnomalyImportResponse, status_code=status.HTTP_201_CREATED)
+def import_existing_anomaly_outputs(
+    payload: AnomalyImportRequest,
+    _current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        results = import_existing_analysis(
+            db=db,
+            source_path=payload.source_path,
+            driver_id=payload.driver_id,
+            session_id=payload.session_id,
+            copy_images=payload.copy_images,
+        )
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Could not import files: {exc}") from exc
+
+    total_imported = sum(result.imported_count for result in results)
+    total_skipped = sum(result.skipped_count for result in results)
+    return AnomalyImportResponse(
+        imports=[
+            AnomalyImportItem(
+                upload=AnomalyUploadResponse.model_validate(result.upload),
+                imported_count=result.imported_count,
+                skipped_count=result.skipped_count,
+                source_report_path=result.source_report_path,
+            )
+            for result in results
+        ],
+        total_imported=total_imported,
+        total_skipped=total_skipped,
+        message=f"Imported {total_imported} anomalies from {len(results)} report(s).",
+    )
+
+
+@router.post("/import-folder", response_model=AnomalyImportResponse, status_code=status.HTTP_201_CREATED)
+async def import_existing_anomaly_folder(
+    files: list[UploadFile] = File(...),
+    relative_paths: list[str] = Form([]),
+    driver_id: int | None = Form(None),
+    session_id: str | None = Form(None),
+    copy_images: bool = Form(True),
+    _current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    staging_dir = BACKEND_ROOT / "uploads" / "anomaly_import_staging" / f"import_{uuid4().hex}"
+    saved_count = 0
+
+    for index, upload_file in enumerate(files):
+        submitted_path = relative_paths[index] if index < len(relative_paths) and relative_paths[index] else upload_file.filename
+        relative_path = safe_import_relative_path(submitted_path)
+        if not is_relevant_import_file(relative_path):
+            await upload_file.close()
+            continue
+
+        destination = staging_dir / relative_path
+        written_bytes = await save_upload_file(upload_file, destination)
+        if written_bytes > 0:
+            saved_count += 1
+
+    if saved_count == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No importable files found. Select a folder containing detections_report.csv, GPS logs, and extracted anomaly images.",
+        )
+
+    try:
+        results = import_existing_analysis(
+            db=db,
+            source_path=str(staging_dir),
+            driver_id=driver_id,
+            session_id=session_id,
+            copy_images=copy_images,
+        )
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Could not import files: {exc}") from exc
+
+    total_imported = sum(result.imported_count for result in results)
+    total_skipped = sum(result.skipped_count for result in results)
+    return AnomalyImportResponse(
+        imports=[
+            AnomalyImportItem(
+                upload=AnomalyUploadResponse.model_validate(result.upload),
+                imported_count=result.imported_count,
+                skipped_count=result.skipped_count,
+                source_report_path=result.source_report_path,
+            )
+            for result in results
+        ],
+        total_imported=total_imported,
+        total_skipped=total_skipped,
+        message=f"Imported {total_imported} anomalies from {len(results)} selected folder report(s).",
+    )
 
 
 @router.post("/uploads/{upload_id}/analyze", response_model=AnomalyUploadResponse)

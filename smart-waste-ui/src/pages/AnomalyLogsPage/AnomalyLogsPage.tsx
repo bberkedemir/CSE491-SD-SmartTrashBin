@@ -1,21 +1,36 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Box,
+  Button,
+  Checkbox,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Fade,
+  FormControl,
+  FormControlLabel,
+  InputLabel,
+  MenuItem,
   Pagination,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
+  CloudUploadOutlined,
+  FolderOpenOutlined,
   ImageOutlined,
   LocationOnOutlined,
   PersonOutline,
@@ -23,7 +38,9 @@ import {
   TimerOutlined,
 } from '@mui/icons-material';
 import { anomalyApi } from '../../api/anomalyApi';
+import { usersApi } from '../../api/usersApi';
 import type { RoadAnomaly } from '../../types/bin';
+import type { User } from '../../types/auth';
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '-';
@@ -42,11 +59,41 @@ function absoluteImageUrl(imageUrl: string | null): string | null {
   return imageUrl;
 }
 
+function relativeFilePath(file: File): string {
+  return (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+}
+
+function isImportCandidateFile(file: File): boolean {
+  const path = relativeFilePath(file).replace(/\\/g, '/').toLowerCase();
+  const isGps = path.includes('gps') && (path.endsWith('.json') || path.endsWith('.csv'));
+  const isReport = path.endsWith('detections_report.csv');
+  const isExtractedImage = path.includes('extracted_anomalies') && /\.(jpe?g|png|webp)$/.test(path);
+  return isReport || isGps || isExtractedImage;
+}
+
+function selectedFolderLabel(files: File[]): string {
+  const firstPath = files[0] ? relativeFilePath(files[0]).replace(/\\/g, '/') : '';
+  return firstPath.includes('/') ? firstPath.split('/')[0] : 'Selected folder';
+}
+
 const AnomalyLogsPage: React.FC = () => {
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const [anomalies, setAnomalies] = useState<RoadAnomaly[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [notice, setNotice] = useState<{ severity: 'success' | 'error' | 'warning'; message: string } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importPath, setImportPath] = useState('');
+  const [importDriverId, setImportDriverId] = useState('');
+  const [importSessionId, setImportSessionId] = useState('');
+  const [copyImages, setCopyImages] = useState(true);
+  const [drivers, setDrivers] = useState<User[]>([]);
+  const [driversLoading, setDriversLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [folderFiles, setFolderFiles] = useState<File[]>([]);
+  const [folderName, setFolderName] = useState('');
   const limit = 12;
 
   useEffect(() => {
@@ -72,7 +119,90 @@ const AnomalyLogsPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [page]);
+  }, [page, reloadKey]);
+
+  useEffect(() => {
+    if (!importOpen) return;
+
+    let isMounted = true;
+    setDriversLoading(true);
+    usersApi.getUsers()
+      .then((data) => {
+        if (isMounted) setDrivers(data);
+      })
+      .catch((error) => {
+        console.error('Error fetching users for anomaly import:', error);
+        if (isMounted) setDrivers([]);
+      })
+      .finally(() => {
+        if (isMounted) setDriversLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [importOpen]);
+
+  const handleImport = async () => {
+    const sourcePath = importPath.trim();
+    if (!sourcePath && folderFiles.length === 0) {
+      setNotice({ severity: 'warning', message: 'Choose a folder or enter a backend path.' });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const importPayload = {
+        driver_id: importDriverId ? Number(importDriverId) : null,
+        session_id: importSessionId.trim() || null,
+        copy_images: copyImages,
+      };
+      const response = folderFiles.length > 0
+        ? await anomalyApi.importFolderFiles(folderFiles, importPayload)
+        : await anomalyApi.importExisting({
+          source_path: sourcePath,
+          ...importPayload,
+        });
+      const skippedText = response.total_skipped ? ` ${response.total_skipped} row(s) skipped.` : '';
+      setNotice({ severity: 'success', message: `${response.message}${skippedText}` });
+      setImportOpen(false);
+      setImportPath('');
+      setImportSessionId('');
+      setImportDriverId('');
+      setFolderFiles([]);
+      setFolderName('');
+      setPage(0);
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setNotice({
+        severity: 'error',
+        message: error instanceof Error ? error.message : 'Import failed.',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const openFolderPicker = () => {
+    const input = folderInputRef.current;
+    if (!input) return;
+    input.value = '';
+    input.setAttribute('webkitdirectory', '');
+    input.setAttribute('directory', '');
+    input.click();
+  };
+
+  const handleFolderSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    const candidates = files.filter(isImportCandidateFile);
+    setFolderFiles(candidates);
+    setFolderName(candidates.length ? selectedFolderLabel(candidates) : '');
+    setImportPath('');
+
+    if (files.length > 0 && candidates.length === 0) {
+      setNotice({ severity: 'warning', message: 'No importable CSV, GPS, or extracted anomaly image files were found in that folder.' });
+    }
+  };
 
   const totalPages = Math.ceil(total / limit);
 
@@ -91,14 +221,30 @@ const AnomalyLogsPage: React.FC = () => {
   return (
     <Fade in timeout={600}>
       <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto' }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            Anomaly Logs
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Detected road anomalies with crop images, GPS coordinates, confidence, and driver details
-          </Typography>
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Anomaly Logs
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Detected road anomalies with crop images, GPS coordinates, confidence, and driver details
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<CloudUploadOutlined />}
+            onClick={() => setImportOpen(true)}
+            sx={{ alignSelf: { xs: 'stretch', md: 'center' }, bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}
+          >
+            Import Existing Folder
+          </Button>
         </Box>
+
+        {notice && (
+          <Alert severity={notice.severity} onClose={() => setNotice(null)} sx={{ mb: 3 }}>
+            {notice.message}
+          </Alert>
+        )}
 
         <Box sx={{
           display: 'flex',
@@ -315,6 +461,85 @@ const AnomalyLogsPage: React.FC = () => {
             />
           </Box>
         )}
+
+        <Dialog open={importOpen} onClose={() => !importing && setImportOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Import Existing Analysis</DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              onChange={handleFolderSelected}
+              style={{ display: 'none' }}
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                startIcon={<FolderOpenOutlined />}
+                onClick={openFolderPicker}
+                disabled={importing}
+              >
+                Choose Folder
+              </Button>
+              {folderFiles.length > 0 && (
+                <Chip
+                  icon={<ImageOutlined />}
+                  label={`${folderName} · ${folderFiles.length} files`}
+                  sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 700, '& .MuiChip-icon': { color: '#2e7d32' } }}
+                />
+              )}
+            </Box>
+            <TextField
+              label="Backend path"
+              value={importPath}
+              onChange={(event) => setImportPath(event.target.value)}
+              fullWidth
+              disabled={folderFiles.length > 0}
+            />
+            <FormControl fullWidth disabled={driversLoading}>
+              <InputLabel id="anomaly-import-driver-label">Driver</InputLabel>
+              <Select
+                labelId="anomaly-import-driver-label"
+                label="Driver"
+                value={importDriverId}
+                onChange={(event) => setImportDriverId(event.target.value)}
+              >
+                <MenuItem value="">Infer from folder</MenuItem>
+                {drivers.map((driver) => (
+                  <MenuItem key={driver.id} value={String(driver.id)}>
+                    {driver.full_name || driver.username} #{driver.id}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Session ID override"
+              value={importSessionId}
+              onChange={(event) => setImportSessionId(event.target.value)}
+              fullWidth
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={copyImages}
+                  onChange={(_, checked) => setCopyImages(checked)}
+                />
+              }
+              label="Copy crop images into backend uploads"
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setImportOpen(false)} disabled={importing}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleImport}
+              disabled={importing || (!importPath.trim() && folderFiles.length === 0)}
+              startIcon={importing ? <CircularProgress color="inherit" size={16} /> : <CloudUploadOutlined />}
+            >
+              Import
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Fade>
   );
