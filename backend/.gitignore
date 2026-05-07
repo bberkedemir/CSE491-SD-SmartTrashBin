@@ -29,6 +29,7 @@ coverage.xml
 # Database
 *.db
 *.sqlite3
+uploads/
 
 # IDE
 .vscode/
@@ -40,5 +41,3 @@ coverage.xml
 # OS
 .DS_Store
 Thumbs.db
-
-./uploads/

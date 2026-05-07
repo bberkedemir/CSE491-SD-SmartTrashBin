@@ -11,6 +11,18 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-here-change-in-production"
     API_V1_STR: str = "/api/v1"
     
+<<<<<<< HEAD
+=======
+    # IoT
+    IOT_API_KEY: str = "smartbin-iot-2026"
+
+    # Road anomaly uploads
+    ANOMALY_UPLOAD_DIR: str = "uploads/anomaly_sessions"
+    ANOMALY_MODEL_PATH: str = "road-anomaly-detection/best.pt"
+    ANOMALY_CONFIDENCE_THRESHOLD: float = 0.5
+    ANOMALY_SAVE_ANNOTATED_VIDEO: bool = True
+    
+>>>>>>> origin/main
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     
@@ -26,4 +38,8 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
+<<<<<<< HEAD
 settings = Settings()
+=======
+settings = Settings()
+>>>>>>> origin/main

@@ -1,0 +1,4 @@
+train: dataset/train/images
+val: dataset/val/images
+nc: 5
+names: ['longitudinal crack', 'transverse crack', 'alligator crack','other corruption', 'Pothole']

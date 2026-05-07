@@ -34,12 +34,13 @@ export function useRouteOptimization(
         currentRouteIndexRef.current = 0;
     }, []);
 
-    const optimizeRoute = useCallback(async (threshold: number = 30, startLat: number, startLng: number): Promise<boolean> => {
+    const optimizeRoute = useCallback(async (threshold: number = 30, startLat: number, startLng: number, algo: 'default' | 'greedy' = 'default'): Promise<boolean> => {
         setIsOptimizing(true);
         clearRoute();
 
         try {
-            const data: RouteResponse = await binApi.optimizeRoute(threshold, startLat, startLng);
+            const apiCall = algo === 'greedy' ? binApi.optimizeRouteGreedy : binApi.optimizeRoute;
+            const data: RouteResponse = await apiCall(threshold, startLat, startLng);
 
             let latlngs: L.LatLngExpression[] = [];
 

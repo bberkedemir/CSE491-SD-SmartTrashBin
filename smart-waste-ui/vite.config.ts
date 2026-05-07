@@ -10,6 +10,16 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
+<<<<<<< HEAD
+=======
+        ws: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+
+>>>>>>> origin/main
       }
     }
   }
