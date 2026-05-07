@@ -18,6 +18,7 @@ interface MapContainerProps {
     onExitAddMode: () => void;
     driverSessions?: DriverSession[];
     getDriverColor?: (driverId: number) => string;
+    threshold?: number;
 }
 
 const MapContainer: React.FC<MapContainerProps> = ({
@@ -34,8 +35,9 @@ const MapContainer: React.FC<MapContainerProps> = ({
     onExitAddMode,
     driverSessions,
     getDriverColor,
+    threshold = 30,
 }) => {
-    const mapRef = useMapMarkers(bins, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onCollectBin, onThrowTrash, onExitAddMode, driverSessions, getDriverColor);
+    const mapRef = useMapMarkers(bins, routeStops, isAddMode, truckPosition, onTruckMove, onCreateBin, onDeleteBin, onCollectBin, onThrowTrash, onExitAddMode, driverSessions, getDriverColor, threshold);
 
     // Tell parent when map is ready so route optimization can use it
     useEffect(() => {

@@ -27,6 +27,7 @@ export function useMapMarkers(
     onExitAddMode: () => void,
     driverSessions?: DriverSession[],
     getDriverColor?: (driverId: number) => string,
+    threshold: number = 30,
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
@@ -135,7 +136,7 @@ export function useMapMarkers(
                 : bins;
 
             visibleBins.forEach(bin => {
-                const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.getBinIcon(bin.fill) })
+                const marker = L.marker([bin.lat, bin.lng], { icon: mapIcons.getBinIcon(bin.fill, threshold) })
                     .addTo(mapRef.current!)
                     .bindPopup(createMarkerPopupHtml(bin));
 
