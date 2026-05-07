@@ -76,9 +76,36 @@ def anomaly_image_url(image_path: str) -> str | None:
     return f"/uploads/{relative.as_posix()}"
 
 
-def to_road_anomaly_response(anomaly: RoadAnomaly) -> RoadAnomalyResponse:
+def driver_response_fields(driver: User | None) -> dict[str, str | None]:
+    if driver is None:
+        return {
+            "driver_username": None,
+            "driver_full_name": None,
+            "driver_email": None,
+        }
+    return {
+        "driver_username": driver.username,
+        "driver_full_name": driver.full_name,
+        "driver_email": driver.email,
+    }
+
+
+def driver_map_for_anomalies(db: Session, anomalies: list[RoadAnomaly]) -> dict[int, User]:
+    driver_ids = {anomaly.driver_id for anomaly in anomalies if anomaly.driver_id is not None}
+    if not driver_ids:
+        return {}
+    return {
+        driver.id: driver
+        for driver in db.query(User).filter(User.id.in_(driver_ids)).all()
+    }
+
+
+def to_road_anomaly_response(anomaly: RoadAnomaly, driver: User | None = None) -> RoadAnomalyResponse:
     return RoadAnomalyResponse.model_validate(anomaly).model_copy(
-        update={"image_url": anomaly_image_url(anomaly.image_path)}
+        update={
+            "image_url": anomaly_image_url(anomaly.image_path),
+            **driver_response_fields(driver),
+        }
     )
 
 
@@ -174,8 +201,12 @@ def list_upload_anomalies(
 
     query = db.query(RoadAnomaly).filter(RoadAnomaly.upload_id == upload_id)
     anomalies = query.order_by(RoadAnomaly.timestamp_seconds.asc()).offset(skip).limit(limit).all()
+    drivers = driver_map_for_anomalies(db, anomalies)
     return RoadAnomalyList(
-        anomalies=[to_road_anomaly_response(anomaly) for anomaly in anomalies],
+        anomalies=[
+            to_road_anomaly_response(anomaly, drivers.get(anomaly.driver_id))
+            for anomaly in anomalies
+        ],
         total=query.count(),
     )
 
@@ -196,7 +227,11 @@ def list_map_anomalies(
         query = query.filter(RoadAnomaly.driver_id == current_user.id)
 
     anomalies = query.order_by(desc(RoadAnomaly.created_at)).offset(skip).limit(limit).all()
+    drivers = driver_map_for_anomalies(db, anomalies)
     return RoadAnomalyList(
-        anomalies=[to_road_anomaly_response(anomaly) for anomaly in anomalies],
+        anomalies=[
+            to_road_anomaly_response(anomaly, drivers.get(anomaly.driver_id))
+            for anomaly in anomalies
+        ],
         total=query.count(),
     )

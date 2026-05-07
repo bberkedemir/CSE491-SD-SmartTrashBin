@@ -7,6 +7,7 @@ import { Sidebar } from './components/Navigation/Sidebar';
 import RoutingPage from './pages/RoutingPage/RoutingPage';
 import Dashboard from './pages/Dashboard/Dashboard';
 import LogsPage from './pages/LogsPage/LogsPage';
+import AnomalyLogsPage from './pages/AnomalyLogsPage/AnomalyLogsPage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import UsersPage from './pages/UsersPage/UsersPage';
@@ -53,6 +54,7 @@ function AppRoutes() {
           <Route path="/route" element={<RoutingPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/logs" element={<LogsPage />} />
+          <Route path="/anomaly-logs" element={<AnomalyLogsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<Navigate to="/route" replace />} />
         </Routes>

@@ -37,6 +37,9 @@ class RoadAnomalyResponse(BaseModel):
     image_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    driver_username: str | None = None
+    driver_full_name: str | None = None
+    driver_email: str | None = None
     created_at: datetime | None = None
 
     class Config:

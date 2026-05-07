@@ -21,4 +21,14 @@ export const anomalyApi = {
         const data = await response.json() as RoadAnomalyList;
         return data.anomalies;
     },
+
+    async fetchLogs(skip = 0, limit = 20): Promise<RoadAnomalyList> {
+        const response = await fetch(`${API_BASE}/anomalies/map?skip=${skip}&limit=${limit}`, {
+            headers: getAuthHeaders(),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch anomaly logs');
+        }
+        return response.json() as Promise<RoadAnomalyList>;
+    },
 };

@@ -47,6 +47,9 @@ export interface RoadAnomaly {
     image_url: string | null;
     latitude: number | null;
     longitude: number | null;
+    driver_username: string | null;
+    driver_full_name: string | null;
+    driver_email: string | null;
     created_at: string | null;
 }
 
