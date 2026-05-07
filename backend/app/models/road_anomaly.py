@@ -15,6 +15,7 @@ class RoadAnomaly(Base):
     confidence = Column(Float, nullable=False)
     timestamp_seconds = Column(Float, nullable=False)
     image_path = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="default")
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

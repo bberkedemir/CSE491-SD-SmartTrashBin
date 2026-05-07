@@ -1,6 +1,10 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
+
+
+RoadAnomalyStatus = Literal["default", "needs_repair", "repaired"]
 
 
 class AnomalyUploadResponse(BaseModel):
@@ -55,6 +59,7 @@ class RoadAnomalyResponse(BaseModel):
     confidence: float
     timestamp_seconds: float
     image_path: str
+    status: RoadAnomalyStatus = "default"
     image_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -70,3 +75,7 @@ class RoadAnomalyResponse(BaseModel):
 class RoadAnomalyList(BaseModel):
     anomalies: list[RoadAnomalyResponse]
     total: int
+
+
+class RoadAnomalyStatusUpdate(BaseModel):
+    status: RoadAnomalyStatus

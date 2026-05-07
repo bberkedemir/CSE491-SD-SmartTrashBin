@@ -1,0 +1,20 @@
+{
+  "settings_version": "0.0.6",
+  "datasets_dir": "C:\\Users\\WestM\\Desktop\\datasets",
+  "weights_dir": "C:\\Users\\WestM\\Desktop\\CSE491-SD-SmartTrashBin\\weights",
+  "runs_dir": "C:\\Users\\WestM\\Desktop\\CSE491-SD-SmartTrashBin\\runs",
+  "uuid": "67fddc648fd2fadd05307a8f5cddfdfc4d5390e0a80dd487f44ef4bda3e4a376",
+  "sync": true,
+  "api_key": "",
+  "openai_api_key": "",
+  "clearml": true,
+  "comet": true,
+  "dvc": true,
+  "hub": true,
+  "mlflow": true,
+  "neptune": true,
+  "raytune": true,
+  "tensorboard": true,
+  "wandb": false,
+  "vscode_msg": true
+}

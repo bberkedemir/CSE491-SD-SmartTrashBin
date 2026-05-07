@@ -13,6 +13,7 @@ import {
   Fade,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Pagination,
@@ -30,6 +31,7 @@ import {
 } from '@mui/material';
 import {
   CloudUploadOutlined,
+  DeleteOutline,
   FolderOpenOutlined,
   ImageOutlined,
   LocationOnOutlined,
@@ -39,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { anomalyApi } from '../../api/anomalyApi';
 import { usersApi } from '../../api/usersApi';
-import type { RoadAnomaly } from '../../types/bin';
+import type { RoadAnomaly, RoadAnomalyStatus } from '../../types/bin';
 import type { User } from '../../types/auth';
 
 function timeAgo(dateStr: string | null): string {
@@ -74,6 +76,12 @@ function isImportCandidateFile(file: File): boolean {
 function selectedFolderLabel(files: File[]): string {
   const firstPath = files[0] ? relativeFilePath(files[0]).replace(/\\/g, '/') : '';
   return firstPath.includes('/') ? firstPath.split('/')[0] : 'Selected folder';
+}
+
+function statusLabel(status: RoadAnomalyStatus): string {
+  if (status === 'needs_repair') return 'Needs Repair';
+  if (status === 'repaired') return 'Repaired';
+  return 'Default';
 }
 
 const AnomalyLogsPage: React.FC = () => {
@@ -204,6 +212,35 @@ const AnomalyLogsPage: React.FC = () => {
     }
   };
 
+  const handleStatusChange = async (anomaly: RoadAnomaly, status: RoadAnomalyStatus) => {
+    try {
+      const updated = await anomalyApi.updateStatus(anomaly.id, status);
+      setAnomalies((items) => items.map((item) => item.id === anomaly.id ? updated : item));
+      setNotice({ severity: 'success', message: `Anomaly marked as ${statusLabel(status)}.` });
+    } catch (error) {
+      setNotice({
+        severity: 'error',
+        message: error instanceof Error ? error.message : 'Failed to update anomaly status.',
+      });
+    }
+  };
+
+  const handleDeleteAnomaly = async (anomaly: RoadAnomaly) => {
+    if (!window.confirm('Delete this road anomaly? This cannot be undone.')) return;
+
+    try {
+      await anomalyApi.delete(anomaly.id);
+      setAnomalies((items) => items.filter((item) => item.id !== anomaly.id));
+      setTotal((value) => Math.max(0, value - 1));
+      setNotice({ severity: 'success', message: 'Road anomaly deleted.' });
+    } catch (error) {
+      setNotice({
+        severity: 'error',
+        message: error instanceof Error ? error.message : 'Failed to delete road anomaly.',
+      });
+    }
+  };
+
   const totalPages = Math.ceil(total / limit);
 
   const summary = useMemo(() => {
@@ -282,10 +319,10 @@ const AnomalyLogsPage: React.FC = () => {
           component={Paper}
           sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflow: 'hidden' }}
         >
-          <Table stickyHeader sx={{ minWidth: 980 }}>
+          <Table stickyHeader sx={{ minWidth: 1120 }}>
             <TableHead>
               <TableRow>
-                {['Image', 'Detection', 'GPS', 'Driver', 'Upload', 'Created'].map((header) => (
+                {['Image', 'Detection', 'GPS', 'Driver', 'Status', 'Upload', 'Created', 'Actions'].map((header) => (
                   <TableCell key={header} sx={{
                     fontWeight: 700,
                     fontSize: 12,
@@ -305,13 +342,13 @@ const AnomalyLogsPage: React.FC = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} />
                   </TableCell>
                 </TableRow>
               ) : anomalies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.45 }}>
                       <ReportProblemOutlined sx={{ fontSize: 52, color: 'text.secondary', mb: 1.5 }} />
                       <Typography variant="h6" color="text.secondary">No anomaly logs found</Typography>
@@ -414,6 +451,25 @@ const AnomalyLogsPage: React.FC = () => {
                       </TableCell>
 
                       <TableCell>
+                        <FormControl size="small" sx={{ minWidth: 142 }}>
+                          <Select
+                            value={anomaly.status}
+                            onChange={(event) => handleStatusChange(anomaly, event.target.value as RoadAnomalyStatus)}
+                            sx={{
+                              bgcolor: anomaly.status === 'repaired' ? '#e8f5e9' : anomaly.status === 'needs_repair' ? '#fff3e0' : '#f5f5f5',
+                              color: anomaly.status === 'repaired' ? '#2e7d32' : anomaly.status === 'needs_repair' ? '#e65100' : 'text.primary',
+                              fontWeight: 700,
+                              '& .MuiSelect-select': { py: 0.75 },
+                            }}
+                          >
+                            <MenuItem value="default">Default</MenuItem>
+                            <MenuItem value="needs_repair">Needs Repair</MenuItem>
+                            <MenuItem value="repaired">Repaired</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+
+                      <TableCell>
                         <Typography variant="body2" fontWeight={600}>
                           Upload #{anomaly.upload_id}
                         </Typography>
@@ -437,6 +493,18 @@ const AnomalyLogsPage: React.FC = () => {
                         ) : (
                           <Typography variant="body2" color="text.disabled">-</Typography>
                         )}
+                      </TableCell>
+
+                      <TableCell>
+                        <Tooltip title="Delete anomaly" arrow>
+                          <IconButton
+                            color="error"
+                            size="small"
+                            onClick={() => handleDeleteAnomaly(anomaly)}
+                          >
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   );

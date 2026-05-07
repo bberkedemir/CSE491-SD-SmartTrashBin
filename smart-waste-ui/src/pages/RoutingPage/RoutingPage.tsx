@@ -18,7 +18,7 @@ const COLLECTION_THRESHOLD = 30;
 
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData } = useBins();
-  const { roadAnomalies, fetchRoadAnomalies } = useRoadAnomalies();
+  const { roadAnomalies, fetchRoadAnomalies, deleteRoadAnomaly, updateRoadAnomalyStatus } = useRoadAnomalies();
   const [isAddMode, setIsAddMode] = useState(false);
   // Default truck position set to roughly Campus Gate
   const [truckPosition, setTruckPosition] = useState<[number, number]>([36.892539, 30.663895]);
@@ -230,6 +230,8 @@ const RoutingPage: React.FC = () => {
           onDeleteBin={deleteBin}
           onCollectBin={collectBin}
           onThrowTrash={throwTrash}
+          onDeleteAnomaly={deleteRoadAnomaly}
+          onUpdateAnomalyStatus={updateRoadAnomalyStatus}
           onMapReady={handleMapReady}
           onExitAddMode={handleExitAddMode}
           driverSessions={driverSessions}
