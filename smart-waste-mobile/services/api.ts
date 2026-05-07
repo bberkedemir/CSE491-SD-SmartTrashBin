@@ -16,7 +16,7 @@ import type {
 } from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://10.105.126.189:8000';
+export const API_BASE_URL = 'http://10.93.122.89:8000';
 
 //export const API_BASE_URL = 'https://arise-deprive-disobey.ngrok-free.dev';
 
@@ -185,9 +185,8 @@ export interface TrackingPositionPayload {
   skipped_ids: number[];
 }
 
-export const updateTrackingPosition = (payload: TrackingPositionPayload): void => {
-  // Fire-and-forget — must not block the GPS callback
-  api.put('/api/v1/tracking/position', payload).catch(() => { });
+export const updateTrackingPosition = (payload: TrackingPositionPayload): Promise<void> => {
+  return api.put('/api/v1/tracking/position', payload).then(() => {});
 };
 
 export interface TrackingCompletePayload {
@@ -199,19 +198,14 @@ export const completeTrackingSession = async (payload: TrackingCompletePayload):
   await api.post('/api/v1/tracking/complete', payload);
 };
 
-// Tracking
-export interface TrackingStartPayload {
-  route_stops: RouteResponse['route_sequence'];
-  route_geometry: RouteResponse['route_geometry'];
-  current_lat: number;
-  current_lng: number;
+export interface ActiveSessionSummary {
+  driver_id: number;
+  is_completed: boolean;
 }
 
-export interface TrackingCompletePayload {
-  collected_ids: number[];
-  skipped_ids: number[];
-}
-
-
+export const getActiveSessions = async (): Promise<ActiveSessionSummary[]> => {
+  const { data } = await api.get<{ sessions: ActiveSessionSummary[]; count: number }>('/api/v1/tracking/sessions');
+  return data.sessions;
+};
 
 export default api;

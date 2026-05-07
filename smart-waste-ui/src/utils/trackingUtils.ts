@@ -9,8 +9,6 @@ const DRIVER_COLORS = [
     '#546e7a',
 ];
 
-export function getDriverColor(driverId: number, allDriverIds: number[]): string {
-    const sorted = [...allDriverIds].sort((a, b) => a - b);
-    const idx = sorted.indexOf(driverId);
-    return DRIVER_COLORS[idx % DRIVER_COLORS.length];
+export function getDriverColor(driverId: number): string {
+    return DRIVER_COLORS[driverId % DRIVER_COLORS.length];
 }

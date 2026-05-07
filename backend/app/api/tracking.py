@@ -101,8 +101,8 @@ async def complete_session(
     session.skipped_ids = payload.skipped_ids
     session.last_update = datetime.now(timezone.utc)
 
-    await _broadcast(WSMessage(event="session_completed", session=session))
     del _sessions[current_user.id]
+    await _broadcast(WSMessage(event="session_completed", session=session))
     logger.info(f"[TRACKING] Session completed: driver={current_user.username}")
     return {"status": "completed"}
 
@@ -126,14 +126,14 @@ async def cancel_session(
     session.is_completed = True
     session.last_update = datetime.now(timezone.utc)
 
-    await _broadcast(WSMessage(event="session_completed", session=session))
     del _sessions[driver_id]
+    await _broadcast(WSMessage(event="session_completed", session=session))
     logger.info(f"[TRACKING] Session cancelled by admin {current_user.username}: driver_id={driver_id}")
     return {"status": "cancelled", "driver_id": driver_id}
 
 
 # ── Stale session cleanup ─────────────────────────────────────────────────────
-STALE_TIMEOUT_SECONDS = 300  # 5 minutes — covers closed/backgrounded app
+STALE_TIMEOUT_SECONDS = 1800  # 30 minutes — covers closed/backgrounded app
 
 
 async def cleanup_stale_sessions() -> None:
@@ -147,8 +147,8 @@ async def cleanup_stale_sessions() -> None:
         ]
         for session in stale:
             session.is_completed = True
-            await _broadcast(WSMessage(event="session_completed", session=session))
             _sessions.pop(session.driver_id, None)
+            await _broadcast(WSMessage(event="session_completed", session=session))
             logger.info(
                 f"[TRACKING] Stale session auto-removed: driver={session.driver_name} "
                 f"(last update {int((now - session.last_update).total_seconds())}s ago)"

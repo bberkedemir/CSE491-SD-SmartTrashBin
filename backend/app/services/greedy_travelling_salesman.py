@@ -1,6 +1,6 @@
 import math
 import requests
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.bin import Bin
@@ -100,7 +100,7 @@ class GreedyTravellingSalesmanService:
         return route_indices, total_distance
 
     @staticmethod
-    def optimize_route(db: Session, threshold: int = 75, start_lat: float = ENTRY_POINT['lat'], start_lng: float = ENTRY_POINT['lng']) -> RouteResponse:
+    def optimize_route(db: Session, threshold: int = 75, start_lat: float = ENTRY_POINT['lat'], start_lng: float = ENTRY_POINT['lng'], max_bins: Optional[int] = None) -> RouteResponse:
         """
         Fetch bins above threshold and generate optimized route using OSRM
         """
@@ -116,6 +116,10 @@ class GreedyTravellingSalesmanService:
                 "fill": b.fill
             })
             
+        bins_data.sort(key=lambda b: b["fill"], reverse=True)
+        if max_bins is not None:
+            bins_data = bins_data[:max_bins]
+
         if not bins_data:
             return RouteResponse(
                 generated_at=datetime.now(),

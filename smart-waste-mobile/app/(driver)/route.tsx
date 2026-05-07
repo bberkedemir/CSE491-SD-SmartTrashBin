@@ -4,8 +4,9 @@ import { Text, Button, Card, Chip, ProgressBar, Divider, Banner } from 'react-na
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { collectBin, updateTrackingPosition, completeTrackingSession } from '../../services/api';
+import { collectBin, updateTrackingPosition, completeTrackingSession, getActiveSessions } from '../../services/api';
 import { useRoute } from '../../context/RouteContext';
+import { useAuth } from '../../context/AuthContext';
 import type { RouteResponse, RouteStop } from '../../types';
 
 const PROXIMITY_METERS = 50;
@@ -27,6 +28,7 @@ function formatDistance(m: number): string {
 
 export default function RouteScreen() {
   const { activeRoute, setActiveRoute } = useRoute();
+  const { user } = useAuth();
 
   const [route, setRoute] = useState<RouteResponse | null>(null);
   const [pickupStops, setPickupStops] = useState<RouteStop[]>([]);
@@ -46,6 +48,42 @@ export default function RouteScreen() {
   const skippedRef = useRef<Set<number>>(new Set());
   const currentIndexRef = useRef<number>(0);
   const driverLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  const clearRoute = useCallback((message?: string) => {
+    locationSub.current?.remove();
+    locationSub.current = null;
+    setActiveRoute(null);
+    setRoute(null);
+    setPickupStops([]);
+    setCurrentIndex(0);
+    setCollected(new Set());
+    setSkipped(new Set());
+    setNearbyBanner(false);
+    setProximityAlertShown(false);
+    setDistanceToStop(null);
+    startedAtRef.current = null;
+    collectedRef.current = new Set();
+    skippedRef.current = new Set();
+    currentIndexRef.current = 0;
+    if (message) Alert.alert('Route Cancelled', message);
+  }, [setActiveRoute]);
+
+  // Poll every 15s to detect admin-initiated session cancellation
+  useEffect(() => {
+    if (!route || !user) return;
+    const interval = setInterval(async () => {
+      try {
+        const sessions = await getActiveSessions();
+        const mine = sessions.find((s) => s.driver_id === user.id);
+        if (!mine) {
+          clearRoute('Your route was cancelled by the administrator.');
+        }
+      } catch {
+        // network errors are non-fatal
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [route, user, clearRoute]);
 
   // Sync from context whenever a new route is set from the Map tab
   useEffect(() => {
@@ -91,13 +129,16 @@ export default function RouteScreen() {
         const { latitude, longitude } = loc.coords;
         setDriverLocation({ lat: latitude, lng: longitude });
         driverLocationRef.current = { lat: latitude, lng: longitude };
-        // Report position to backend (fire-and-forget)
         updateTrackingPosition({
           lat: latitude,
           lng: longitude,
           current_stop_index: currentIndexRef.current,
           collected_ids: [...collectedRef.current],
           skipped_ids: [...skippedRef.current],
+        }).catch((err: any) => {
+          if (err?.response?.status === 404) {
+            clearRoute('Your route was cancelled by the administrator.');
+          }
         });
       }
     );
@@ -212,18 +253,7 @@ export default function RouteScreen() {
               collected_ids: [...collectedRef.current],
               skipped_ids: [...skippedRef.current],
             }).catch(() => {});
-            locationSub.current?.remove();
-            locationSub.current = null;
-            setActiveRoute(null);
-            setRoute(null);
-            setPickupStops([]);
-            setCurrentIndex(0);
-            setCollected(new Set());
-            setSkipped(new Set());
-            setNearbyBanner(false);
-            setProximityAlertShown(false);
-            setDistanceToStop(null);
-            startedAtRef.current = null;
+            clearRoute();
           },
         },
       ]
@@ -405,11 +435,12 @@ export default function RouteScreen() {
   );
 }
 
+const COLLECTION_THRESHOLD = 30;
+
 function fillColor(fill: number) {
-  if (fill >= 90) return '#c62828';
-  if (fill >= 75) return '#e65100';
-  if (fill >= 50) return '#f9a825';
-  return '#2e7d32';
+  if (fill >= 80) return '#ff4757';
+  if (fill >= COLLECTION_THRESHOLD) return '#ffa502';
+  return '#2ed573';
 }
 
 const styles = StyleSheet.create({
