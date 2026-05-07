@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import engine
 from app.models import user, bin, log, token_blacklist, anomaly_upload, road_anomaly
@@ -13,6 +16,10 @@ log.Base.metadata.create_all(bind=engine)
 token_blacklist.Base.metadata.create_all(bind=engine)
 anomaly_upload.Base.metadata.create_all(bind=engine)
 road_anomaly.Base.metadata.create_all(bind=engine)
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+UPLOADS_DIR = BACKEND_ROOT / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="Smart Waste Bin API",
@@ -37,6 +44,7 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["aut
 app.include_router(logs.router, prefix=f"{settings.API_V1_STR}/logs", tags=["logs"])
 app.include_router(iot.router, prefix=f"{settings.API_V1_STR}/iot", tags=["iot"])
 app.include_router(anomalies.router, prefix=f"{settings.API_V1_STR}/anomalies", tags=["anomalies"])
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 @app.get("/")
 def root():

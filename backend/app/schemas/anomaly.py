@@ -34,6 +34,7 @@ class RoadAnomalyResponse(BaseModel):
     confidence: float
     timestamp_seconds: float
     image_path: str
+    image_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     created_at: datetime | None = None

@@ -117,3 +117,23 @@ export interface AnomalyUploadList {
   uploads: AnomalyUploadResponse[];
   total: number;
 }
+
+export interface RoadAnomaly {
+  id: number;
+  upload_id: number;
+  driver_id: number | null;
+  class_name: string;
+  track_id: number;
+  confidence: number;
+  timestamp_seconds: number;
+  image_path: string;
+  image_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string | null;
+}
+
+export interface RoadAnomalyList {
+  anomalies: RoadAnomaly[];
+  total: number;
+}

@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.models.anomaly_upload import AnomalyUpload
 from app.models.road_anomaly import RoadAnomaly
 from app.models.user import User
-from app.schemas.anomaly import AnomalyUploadList, AnomalyUploadResponse, RoadAnomalyList
+from app.schemas.anomaly import AnomalyUploadList, AnomalyUploadResponse, RoadAnomalyList, RoadAnomalyResponse
 from app.services.anomaly_analysis import analyze_upload
 
 
@@ -64,6 +64,22 @@ def video_suffix(filename: str | None) -> str:
     if suffix in {".mp4", ".mov", ".m4v", ".webm"}:
         return suffix
     return ".mp4"
+
+
+def anomaly_image_url(image_path: str) -> str | None:
+    uploads_root = BACKEND_ROOT / "uploads"
+    path = Path(image_path)
+    try:
+        relative = path.relative_to(uploads_root)
+    except ValueError:
+        return None
+    return f"/uploads/{relative.as_posix()}"
+
+
+def to_road_anomaly_response(anomaly: RoadAnomaly) -> RoadAnomalyResponse:
+    return RoadAnomalyResponse.model_validate(anomaly).model_copy(
+        update={"image_url": anomaly_image_url(anomaly.image_path)}
+    )
 
 
 @router.post("/uploads", response_model=AnomalyUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -158,4 +174,29 @@ def list_upload_anomalies(
 
     query = db.query(RoadAnomaly).filter(RoadAnomaly.upload_id == upload_id)
     anomalies = query.order_by(RoadAnomaly.timestamp_seconds.asc()).offset(skip).limit(limit).all()
-    return RoadAnomalyList(anomalies=anomalies, total=query.count())
+    return RoadAnomalyList(
+        anomalies=[to_road_anomaly_response(anomaly) for anomaly in anomalies],
+        total=query.count(),
+    )
+
+
+@router.get("/map", response_model=RoadAnomalyList)
+def list_map_anomalies(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(500, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(RoadAnomaly).filter(
+        RoadAnomaly.latitude.isnot(None),
+        RoadAnomaly.longitude.isnot(None),
+    )
+    user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
+    if user_role != "admin":
+        query = query.filter(RoadAnomaly.driver_id == current_user.id)
+
+    anomalies = query.order_by(desc(RoadAnomaly.created_at)).offset(skip).limit(limit).all()
+    return RoadAnomalyList(
+        anomalies=[to_road_anomaly_response(anomaly) for anomaly in anomalies],
+        total=query.count(),
+    )

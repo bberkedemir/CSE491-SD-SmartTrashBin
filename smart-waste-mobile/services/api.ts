@@ -5,6 +5,8 @@ import type {
   AnomalyUploadList,
   AnomalyUploadResponse,
   Bin,
+  RoadAnomaly,
+  RoadAnomalyList,
   RouteResponse,
   CollectionLog,
   LoginCredentials,
@@ -14,7 +16,7 @@ import type {
 } from '../types';
 
 // Use LAN IP (not localhost) when testing on a physical device via Expo Go
-export const API_BASE_URL = 'http://192.168.1.102:8000';
+export const API_BASE_URL = 'http://10.105.126.189:8000';
 //export const API_BASE_URL = 'https://arise-deprive-disobey.ngrok-free.dev';
 
 
@@ -144,6 +146,13 @@ export const getAnomalyUploads = async (skip = 0, limit = 50): Promise<AnomalyUp
     params: { skip, limit },
   });
   return data.uploads;
+};
+
+export const getRoadAnomalies = async (skip = 0, limit = 500): Promise<RoadAnomaly[]> => {
+  const { data } = await api.get<RoadAnomalyList>('/api/v1/anomalies/map', {
+    params: { skip, limit },
+  });
+  return data.anomalies;
 };
 
 export default api;
