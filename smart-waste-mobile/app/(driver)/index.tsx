@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Alert, Modal } from 'react-native';
+import { Image, View, StyleSheet, Alert, Modal } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import type { LatLng } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { getBins, getOptimizedRoute, startTrackingSession, completeTrackingSession } from '../../services/api';
+import { API_BASE_URL, getBins, getOptimizedRoute, getRoadAnomalies, startTrackingSession, completeTrackingSession } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useRoute } from '../../context/RouteContext';
 import ErrorState from '../../components/ErrorState';
-import type { Bin, RouteResponse } from '../../types';
+import type { Bin, RoadAnomaly, RouteResponse } from '../../types';
 
 /**
  * Ported from web UI useRouteOptimization.ts:
@@ -60,6 +60,7 @@ export default function MapScreen() {
   const hasDragged = useRef(false);
 
   const [bins, setBins] = useState<Bin[]>([]);
+  const [roadAnomalies, setRoadAnomalies] = useState<RoadAnomaly[]>([]);
   const [loading, setLoading] = useState(true);
   const [binsError, setBinsError] = useState('');
   const [routeLoading, setRouteLoading] = useState(false);
@@ -75,9 +76,11 @@ export default function MapScreen() {
   // The polyline currently drawn — updated cheaply on drag without an API call
   const [displayPolyline, setDisplayPolyline] = useState<LatLng[]>([]);
   const [selectedBin, setSelectedBin] = useState<Bin | null>(null);
+  const [selectedAnomaly, setSelectedAnomaly] = useState<RoadAnomaly | null>(null);
 
   useEffect(() => {
     loadBins();
+    loadRoadAnomalies();
     requestLocation();
   }, []);
 
@@ -127,6 +130,15 @@ export default function MapScreen() {
     }
   };
 
+  const loadRoadAnomalies = async () => {
+    try {
+      const data = await getRoadAnomalies();
+      setRoadAnomalies(data.filter((item) => item.latitude !== null && item.longitude !== null));
+    } catch {
+      // Keep bin tracking usable if anomaly history is temporarily unavailable.
+    }
+  };
+
   const handleGetRoute = async () => {
     setRouteLoading(true);
     try {
@@ -149,7 +161,7 @@ export default function MapScreen() {
         route_geometry: r.route_geometry as [number, number][],
         current_lat: truckPosition.latitude,
         current_lng: truckPosition.longitude,
-      }).catch(() => {});
+      }).catch(() => { });
       const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
@@ -181,7 +193,7 @@ export default function MapScreen() {
   };
 
   const handleStopRoute = () => {
-    completeTrackingSession({ collected_ids: [], skipped_ids: [] }).catch(() => {});
+    completeTrackingSession({ collected_ids: [], skipped_ids: [] }).catch(() => { });
     setActiveRoute(null);
     setRoute(null);
     setDisplayPolyline([]);
@@ -213,8 +225,8 @@ export default function MapScreen() {
         {/* Bin markers — when a route is active, only show bins included in the route */}
         {(route
           ? bins.filter((b) =>
-              route.route_sequence.some((s) => s.type === 'pickup' && s.id === b.id)
-            )
+            route.route_sequence.some((s) => s.type === 'pickup' && s.id === b.id)
+          )
           : bins
         ).map((bin) => (
           <Marker
@@ -232,6 +244,22 @@ export default function MapScreen() {
         ))}
 
         {/* Route polyline — sliced from truck position on drag, no API call */}
+        {roadAnomalies.map((anomaly) => (
+          <Marker
+            key={`anomaly-${anomaly.id}`}
+            coordinate={{ latitude: anomaly.latitude!, longitude: anomaly.longitude! }}
+            onPress={() => setSelectedAnomaly(anomaly)}
+            anchor={{ x: 0.5, y: 0.5 }}
+            zIndex={8}
+          >
+            <View style={styles.anomalyMarkerOuter}>
+              <View style={styles.anomalyMarkerInner}>
+                <Text style={styles.anomalyMarkerText}>!</Text>
+              </View>
+            </View>
+          </Marker>
+        ))}
+
         {displayPolyline.length > 0 && (
           <Polyline
             coordinates={displayPolyline}
@@ -299,6 +327,7 @@ export default function MapScreen() {
           { color: '#f9a825', label: '50–75%' },
           { color: '#e65100', label: '75–90%' },
           { color: '#c62828', label: '>90%' },
+          { color: '#7b1fa2', label: 'Road anomaly' },
         ].map((l) => (
           <View key={l.label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: l.color }]} />
@@ -344,7 +373,7 @@ export default function MapScreen() {
 
       {/* Small utility FABs — anchored above the route banner so they never overlap */}
       <View style={styles.fabSmallGroup}>
-        <FAB icon="refresh" size="small" style={styles.fabSmall} onPress={loadBins} disabled={loading} />
+        <FAB icon="refresh" size="small" style={styles.fabSmall} onPress={() => { loadBins(); loadRoadAnomalies(); }} disabled={loading} />
         <FAB icon="crosshairs-gps" size="small" style={styles.fabSmall} onPress={requestLocation} />
       </View>
 
@@ -381,6 +410,48 @@ export default function MapScreen() {
                 </View>
                 <FillBar fill={selectedBin.fill} />
                 <Button mode="outlined" onPress={() => setSelectedBin(null)} style={{ marginTop: 12 }}>
+                  Close
+                </Button>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!selectedAnomaly}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedAnomaly(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.binSheet}>
+            {selectedAnomaly && (
+              <>
+                <View style={styles.sheetHandle} />
+                <Text variant="titleMedium" style={styles.anomalySheetTitle}>Road Anomaly</Text>
+                {selectedAnomaly.image_url && (
+                  <Image
+                    source={{ uri: `${API_BASE_URL}${selectedAnomaly.image_url}` }}
+                    style={styles.anomalyImage}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={styles.sheetRow}>
+                  <Chip icon="road-variant" style={styles.anomalyChip} textStyle={{ color: '#fff' }}>
+                    {selectedAnomaly.class_name}
+                  </Chip>
+                  <Chip icon="percent" compact>
+                    {(selectedAnomaly.confidence * 100).toFixed(0)}% confidence
+                  </Chip>
+                  <Chip icon="timer-outline" compact>
+                    {selectedAnomaly.timestamp_seconds.toFixed(1)}s
+                  </Chip>
+                  <Chip icon="map-marker" compact>
+                    {selectedAnomaly.latitude?.toFixed(4)}, {selectedAnomaly.longitude?.toFixed(4)}
+                  </Chip>
+                </View>
+                <Button mode="outlined" onPress={() => setSelectedAnomaly(null)} style={{ marginTop: 12 }}>
                   Close
                 </Button>
               </>
@@ -427,6 +498,10 @@ const styles = StyleSheet.create({
   markerInner: { borderRadius: 14, paddingHorizontal: 6, paddingVertical: 3 },
   markerText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 
+  anomalyMarkerOuter: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', borderWidth: 2, borderColor: '#4a148c', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
+  anomalyMarkerInner: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#7b1fa2', justifyContent: 'center', alignItems: 'center' },
+  anomalyMarkerText: { color: '#fff', fontSize: 17, fontWeight: '900' },
+
   stopBadge: { backgroundColor: '#2e7d32', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   stopBadgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 
@@ -465,5 +540,8 @@ const styles = StyleSheet.create({
   binSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#cfd8dc', alignSelf: 'center', marginBottom: 16 },
   sheetTitle: { fontWeight: '700', color: '#1b5e20', marginBottom: 10 },
+  anomalySheetTitle: { fontWeight: '700', color: '#4a148c', marginBottom: 10 },
+  anomalyImage: { width: '100%', height: 180, borderRadius: 10, backgroundColor: '#eceff1', marginBottom: 12 },
+  anomalyChip: { backgroundColor: '#7b1fa2' },
   sheetRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
 });

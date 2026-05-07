@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Smart Waste needs your location to optimize collection routes.",
-        "NSLocationAlwaysUsageDescription": "Smart Waste needs your location to track your route while collecting."
+        "NSLocationAlwaysUsageDescription": "Smart Waste needs your location to track your route while collecting.",
+        "NSCameraUsageDescription": "Smart Waste uses the camera to record road conditions during collection routes.",
+        "NSMicrophoneUsageDescription": "Smart Waste records video with microphone access while documenting road conditions."
       }
     },
     "android": {
@@ -29,7 +31,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO"
       ]
     },
     "web": {

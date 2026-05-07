@@ -65,3 +65,76 @@ export interface TokenResponse {
   token: string;
   token_type: string;
 }
+
+export interface GpsSample {
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  altitude: number | null;
+  heading: number | null;
+  speed: number | null;
+}
+
+export type AnomalySessionStatus =
+  | 'recorded'
+  | 'uploading'
+  | 'analysis_pending'
+  | 'analysis_running'
+  | 'analysis_complete'
+  | 'analysis_failed'
+  | 'upload_failed';
+
+export interface AnomalyCaptureSession {
+  sessionId: string;
+  videoUri: string;
+  gpsLogUri: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  pointCount: number;
+  status: AnomalySessionStatus;
+  uploadId?: number;
+  uploadedAt?: string;
+  uploadProgress?: number;
+  errorMessage?: string;
+}
+
+export interface AnomalyUploadResponse {
+  id: number;
+  session_id: string;
+  status: AnomalySessionStatus;
+  video_path: string;
+  gps_log_path: string;
+  point_count: number;
+  duration_seconds: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string | null;
+  message: string;
+}
+
+export interface AnomalyUploadList {
+  uploads: AnomalyUploadResponse[];
+  total: number;
+}
+
+export interface RoadAnomaly {
+  id: number;
+  upload_id: number;
+  driver_id: number | null;
+  class_name: string;
+  track_id: number;
+  confidence: number;
+  timestamp_seconds: number;
+  image_path: string;
+  image_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string | null;
+}
+
+export interface RoadAnomalyList {
+  anomalies: RoadAnomaly[];
+  total: number;
+}

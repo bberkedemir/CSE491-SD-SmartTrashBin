@@ -53,6 +53,16 @@ export default function DriverLayout() {
         }}
       />
       <Tabs.Screen
+        name="anomaly"
+        options={{
+          title: 'Road',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="road-variant" color={color} size={size} />
+          ),
+          headerTitle: 'Road Anomaly Capture',
+        }}
+      />
+      <Tabs.Screen
         name="logs"
         options={{
           title: 'Logs',
