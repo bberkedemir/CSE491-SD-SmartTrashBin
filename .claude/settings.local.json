@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-expo-app *)",
+      "Bash(npx expo *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(ipconfig)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(p, encoding='utf-8'\\).read\\(\\)\\) for p in ['app/main.py','app/models/bin.py','app/models/telemetry.py','app/schemas/bin.py','app/schemas/telemetry.py','app/crud/telemetry.py','app/api/devices.py','app/core/config.py']]; print\\('OK'\\)\")",
+      "Bash(venv/Scripts/python.exe -c ' *)",
+      "Bash(xargs grep *)",
+      "Bash(npm run *)",
+      "Bash(python -c \"from app.api import tracking; print\\('OK'\\)\")",
+      "Bash(git commit *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)",
+      "Bash(python *)",
+      "Bash(curl *)"
+    ]
+  }
+}
