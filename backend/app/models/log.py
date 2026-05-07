@@ -11,6 +11,7 @@ class CollectionLog(Base):
     fill_before = Column(Integer, nullable=True)
     fill_after = Column(Integer, nullable=True)
     notes = Column(String, nullable=True)
+    performed_by = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

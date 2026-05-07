@@ -23,7 +23,23 @@ class BinCRUD:
         return len(result.scalars().all())
 
     def create(self, db: Session, bin_data: BinCreate) -> BinModel:
-        """Create a new bin"""
+        """Create a new bin. If a bin exists at the exact same location, update it."""
+        # Check for existing bin with same location
+        stmt = select(BinModel).where(
+            BinModel.lat == bin_data.lat,
+            BinModel.lng == bin_data.lng
+        )
+        existing_bin = db.execute(stmt).scalar_one_or_none()
+
+        if existing_bin:
+            # Update existing instead of creating duplicate
+            existing_bin.fill = bin_data.fill
+            existing_bin.title = bin_data.title
+            db.commit()
+            db.refresh(existing_bin)
+            return existing_bin
+
+        # Create new if doesn't exist
         db_bin = BinModel(**bin_data.model_dump())
         db.add(db_bin)
         db.commit()
