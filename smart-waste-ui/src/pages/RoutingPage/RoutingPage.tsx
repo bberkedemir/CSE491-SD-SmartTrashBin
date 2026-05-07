@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import type { Truck } from '../../types/truck';
+import { trucksApi } from '../../api/trucksApi';
 import { Box, Button, LinearProgress, Menu, MenuItem, Tooltip, IconButton } from '@mui/material';
 import { DeleteForever } from '@mui/icons-material';
 import MapContainer from '../../components/Map/MapContainer';
@@ -70,12 +72,16 @@ const RoutingPage: React.FC = () => {
   );
 
   const { sessions: driverSessions, isConnected: trackingConnected, cancelSession: cancelDriverSession } = useDriverTracking();
-  const allDriverIds = driverSessions.map(s => s.driver_id);
-  const boundGetColor = useCallback(
-    (driverId: number) => getDriverColor(driverId, allDriverIds),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allDriverIds.join(',')]
-  );
+  const boundGetColor = useCallback((driverId: number) => getDriverColor(driverId), []);
+
+  const [driverTrucks, setDriverTrucks] = useState<Record<number, Truck>>({});
+  useEffect(() => {
+    trucksApi.getTrucks().then((trucks) => {
+      const map: Record<number, Truck> = {};
+      trucks.forEach((t) => { if (t.assigned_driver_id != null) map[t.assigned_driver_id] = t; });
+      setDriverTrucks(map);
+    }).catch(() => {});
+  }, []);
   const handleDriverClick = useCallback((session: DriverSession) => {
     if (mapRef.current) {
       mapRef.current.setView([session.lat, session.lng], 16, { animate: true });
@@ -235,6 +241,7 @@ const RoutingPage: React.FC = () => {
           driverSessions={driverSessions}
           getDriverColor={boundGetColor}
           threshold={COLLECTION_THRESHOLD}
+          driverTrucks={driverTrucks}
         />
         <DriverPanel
           sessions={driverSessions}
@@ -243,6 +250,7 @@ const RoutingPage: React.FC = () => {
           getColor={boundGetColor}
           onDriverClick={handleDriverClick}
           onCancelSession={cancelDriverSession}
+          driverTrucks={driverTrucks}
         />
       </Box>
 

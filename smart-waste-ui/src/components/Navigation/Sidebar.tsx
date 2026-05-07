@@ -9,7 +9,7 @@ const navItems = [
   { path: '/route', label: 'Route', icon: <Map /> },
   { path: '/logs', label: 'Logs', icon: <History /> },
   { path: '/anomaly-logs', label: 'Anomaly Logs', icon: <ReportProblem /> },
-  { path: '/users', label: 'Users', icon: <People /> },
+  { path: '/users', label: 'Users & Trucks', icon: <People /> },
 ];
 
 export const Sidebar: React.FC = () => {
