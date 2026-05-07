@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, Tooltip, Avatar, Typography } from '@mui/material';
-import { Map, Dashboard, History, Logout, People } from '@mui/icons-material';
+import { Map, Dashboard, History, Logout, People, ReportProblem } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthProvider';
 
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
   { path: '/route', label: 'Route', icon: <Map /> },
   { path: '/logs', label: 'Logs', icon: <History /> },
+  { path: '/anomaly-logs', label: 'Anomaly Logs', icon: <ReportProblem /> },
   { path: '/users', label: 'Users & Trucks', icon: <People /> },
 ];
 
@@ -27,7 +28,7 @@ export const Sidebar: React.FC = () => {
   }, [isOpen]);
 
   const visibleNavItems = navItems.filter(item => {
-    if (item.path === '/dashboard' || item.path === '/logs' || item.path === '/users') {
+    if (item.path === '/dashboard' || item.path === '/logs' || item.path === '/anomaly-logs' || item.path === '/users') {
       return isAdmin;
     }
     return true;

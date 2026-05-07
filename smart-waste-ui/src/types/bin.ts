@@ -47,12 +47,48 @@ export interface RoadAnomaly {
     image_url: string | null;
     latitude: number | null;
     longitude: number | null;
+    driver_username: string | null;
+    driver_full_name: string | null;
+    driver_email: string | null;
     created_at: string | null;
 }
 
 export interface RoadAnomalyList {
     anomalies: RoadAnomaly[];
     total: number;
+}
+
+export interface AnomalyImportRequest {
+    source_path: string;
+    driver_id?: number | null;
+    session_id?: string | null;
+    copy_images: boolean;
+}
+
+export interface AnomalyImportItem {
+    upload: {
+        id: number;
+        session_id: string;
+        status: string;
+        video_path: string;
+        gps_log_path: string;
+        point_count: number;
+        duration_seconds: number;
+        started_at: string | null;
+        ended_at: string | null;
+        created_at: string | null;
+        message: string;
+    };
+    imported_count: number;
+    skipped_count: number;
+    source_report_path: string;
+}
+
+export interface AnomalyImportResponse {
+    imports: AnomalyImportItem[];
+    total_imported: number;
+    total_skipped: number;
+    message: string;
 }
 
 export interface AppNotification {

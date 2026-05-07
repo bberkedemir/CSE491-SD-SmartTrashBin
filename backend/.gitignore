@@ -29,7 +29,14 @@ coverage.xml
 # Database
 *.db
 *.sqlite3
-uploads/
+
+# Upload videos
+uploads/**/*.mp4
+uploads/**/*.mov
+uploads/**/*.m4v
+uploads/**/*.webm
+uploads/**/*.avi
+uploads/**/*.mkv
 
 # IDE
 .vscode/
