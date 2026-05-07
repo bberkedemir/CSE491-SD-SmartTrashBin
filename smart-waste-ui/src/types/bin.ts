@@ -60,3 +60,35 @@ export interface AppNotification {
     message: string;
     severity: 'success' | 'error' | 'warning' | 'info';
 }
+
+export interface DriverRouteStop {
+    sequence: number;
+    id: number;
+    title: string;
+    lat: number;
+    lng: number;
+    fill_level: number;
+    type: string;
+}
+
+export interface DriverSession {
+    driver_id: number;
+    driver_name: string;
+    driver_full_name: string;
+    lat: number;
+    lng: number;
+    route_stops: DriverRouteStop[];
+    route_geometry: number[][];
+    current_stop_index: number;
+    collected_ids: number[];
+    skipped_ids: number[];
+    started_at: string;
+    last_update: string;
+    is_completed: boolean;
+}
+
+export interface WSTrackingMessage {
+    event: 'session_started' | 'position_updated' | 'session_completed' | 'full_snapshot';
+    session?: DriverSession;
+    sessions?: DriverSession[];
+}

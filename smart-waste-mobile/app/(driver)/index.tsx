@@ -5,7 +5,7 @@ import type { LatLng } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Text, FAB, Chip, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { API_BASE_URL, getBins, getOptimizedRoute, getRoadAnomalies } from '../../services/api';
+import { API_BASE_URL, getBins, getOptimizedRoute, getRoadAnomalies, startTrackingSession, completeTrackingSession } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useRoute } from '../../context/RouteContext';
 import ErrorState from '../../components/ErrorState';
@@ -155,6 +155,13 @@ export default function MapScreen() {
       setRoute(r);
       setActiveRoute(r);  // share with Route tab via context
       setDisplayPolyline(geo.map(([lat, lng]) => ({ latitude: lat, longitude: lng })));
+      // Start live tracking session (non-blocking)
+      startTrackingSession({
+        route_stops: r.route_sequence,
+        route_geometry: r.route_geometry as [number, number][],
+        current_lat: truckPosition.latitude,
+        current_lng: truckPosition.longitude,
+      }).catch(() => { });
       const coords = pickupStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
@@ -186,7 +193,13 @@ export default function MapScreen() {
   };
 
   const handleStopRoute = () => {
+    completeTrackingSession({ collected_ids: [], skipped_ids: [] }).catch(() => { });
     setActiveRoute(null);
+    setRoute(null);
+    setDisplayPolyline([]);
+    fullGeometry.current = [];
+    geometryIndex.current = 0;
+    hasDragged.current = false;
   };
 
   const handleLogout = () => {
@@ -212,8 +225,8 @@ export default function MapScreen() {
         {/* Bin markers — when a route is active, only show bins included in the route */}
         {(route
           ? bins.filter((b) =>
-              route.route_sequence.some((s) => s.type === 'pickup' && s.id === b.id)
-            )
+            route.route_sequence.some((s) => s.type === 'pickup' && s.id === b.id)
+          )
           : bins
         ).map((bin) => (
           <Marker
@@ -332,9 +345,14 @@ export default function MapScreen() {
               {route.total_distance_km.toFixed(1)} km · {Math.round(route.estimated_time_minutes)} min
             </Text>
           </View>
-          <Button mode="contained" compact icon="stop-circle-outline" onPress={handleStopRoute} style={styles.startBtn}>
-            Stop
-          </Button>
+          <View style={styles.bannerButtons}>
+            <Button mode="contained" compact icon="stop-circle-outline" onPress={handleStopRoute} style={styles.startBtn}>
+              Stop
+            </Button>
+            <Button mode="outlined" compact icon="map-marker-path" onPress={() => router.push('/(driver)/route')} style={styles.routeBtn}>
+              Route
+            </Button>
+          </View>
         </View>
       )}
 
@@ -353,28 +371,21 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      {/* FABs */}
-      <View style={styles.fabGroup}>
-        <FAB
-          icon="refresh"
-          size="small"
-          style={styles.fabSmall}
-          onPress={() => {
-            loadBins();
-            loadRoadAnomalies();
-          }}
-          disabled={loading}
-        />
+      {/* Small utility FABs — anchored above the route banner so they never overlap */}
+      <View style={styles.fabSmallGroup}>
+        <FAB icon="refresh" size="small" style={styles.fabSmall} onPress={() => { loadBins(); loadRoadAnomalies(); }} disabled={loading} />
         <FAB icon="crosshairs-gps" size="small" style={styles.fabSmall} onPress={requestLocation} />
-        <FAB
-          icon={routeLoading ? 'loading' : 'map-marker-path'}
-          label={routeLoading ? 'Computing…' : 'Get Route'}
-          style={styles.fabRoute}
-          onPress={handleGetRoute}
-          loading={routeLoading}
-          disabled={routeLoading || loading}
-        />
       </View>
+
+      {/* Get Route FAB — bottom right */}
+      <FAB
+        icon={routeLoading ? 'loading' : 'map-marker-path'}
+        label={routeLoading ? 'Computing…' : 'Get Route'}
+        style={styles.fabRoute}
+        onPress={handleGetRoute}
+        loading={routeLoading}
+        disabled={routeLoading || loading}
+      />
 
       {/* Bin detail bottom sheet */}
       <Modal
@@ -515,11 +526,13 @@ const styles = StyleSheet.create({
   routeBanner: { position: 'absolute', bottom: 80, left: 12, right: 12, backgroundColor: '#e8f5e9', borderRadius: 14, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#a5d6a7', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
   bannerTitle: { fontWeight: '700', color: '#1b5e20', fontSize: 14 },
   bannerSub: { color: '#558b2f', fontSize: 12, marginTop: 2 },
+  bannerButtons: { flexDirection: 'row', gap: 8 },
   startBtn: { backgroundColor: '#2e7d32' },
+  routeBtn: { borderColor: '#2e7d32' },
 
-  fabGroup: { position: 'absolute', bottom: 16, right: 16, gap: 10, alignItems: 'flex-end' },
+  fabSmallGroup: { position: 'absolute', bottom: 170, right: 16, gap: 10, alignItems: 'flex-end' },
   fabSmall: { backgroundColor: '#fff' },
-  fabRoute: { backgroundColor: '#2e7d32' },
+  fabRoute: { position: 'absolute', bottom: 16, right: 16, backgroundColor: '#2e7d32' },
 
   loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffffcc' },
 

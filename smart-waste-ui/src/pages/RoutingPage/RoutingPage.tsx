@@ -3,13 +3,18 @@ import { Box, Button, LinearProgress, Menu, MenuItem, Tooltip, IconButton } from
 import { DeleteForever } from '@mui/icons-material';
 import MapContainer from '../../components/Map/MapContainer';
 import NotificationSnackbar from '../../components/Notification/NotificationSnackbar';
+import { DriverPanel } from '../../components/DriverPanel/DriverPanel';
 import { useBins } from '../../hooks/useBins';
 import { useRoadAnomalies } from '../../hooks/useRoadAnomalies';
 import { useRouteOptimization } from '../../hooks/useRouteOptimization';
+import { useDriverTracking } from '../../hooks/useDriverTracking';
 import { calculateDistanceMeters } from '../../utils/geoUtils';
+import { getDriverColor } from '../../utils/trackingUtils';
 import { binApi } from '../../api/binApi';
-import type { AppNotification } from '../../types/bin';
+import type { AppNotification, DriverSession } from '../../types/bin';
 import AlgorithmComparisonModal from '../../components/Map/AlgorithmComparisonModal';
+
+const COLLECTION_THRESHOLD = 30;
 
 const RoutingPage: React.FC = () => {
   const { bins, fetchBins, createBin, deleteBin, deleteAllBins, collectBin, throwTrash, simulateTime, exportData } = useBins();
@@ -63,6 +68,19 @@ const RoutingPage: React.FC = () => {
     mapRef,
     setNotification
   );
+
+  const { sessions: driverSessions, isConnected: trackingConnected, cancelSession: cancelDriverSession } = useDriverTracking();
+  const allDriverIds = driverSessions.map(s => s.driver_id);
+  const boundGetColor = useCallback(
+    (driverId: number) => getDriverColor(driverId, allDriverIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allDriverIds.join(',')]
+  );
+  const handleDriverClick = useCallback((session: DriverSession) => {
+    if (mapRef.current) {
+      mapRef.current.setView([session.lat, session.lng], 16, { animate: true });
+    }
+  }, []);
 
   // Role-based rendering
   const userStr = localStorage.getItem('user');
@@ -214,6 +232,17 @@ const RoutingPage: React.FC = () => {
           onThrowTrash={throwTrash}
           onMapReady={handleMapReady}
           onExitAddMode={handleExitAddMode}
+          driverSessions={driverSessions}
+          getDriverColor={boundGetColor}
+          threshold={COLLECTION_THRESHOLD}
+        />
+        <DriverPanel
+          sessions={driverSessions}
+          isConnected={trackingConnected}
+          isAdmin={isAdmin}
+          getColor={boundGetColor}
+          onDriverClick={handleDriverClick}
+          onCancelSession={cancelDriverSession}
         />
       </Box>
 
@@ -397,7 +426,7 @@ const RoutingPage: React.FC = () => {
             if (isRouteActive) {
                 clearRoute();
             } else {
-                const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+                const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'default');
                 if (success) {
                     setLastUpdatePosition(truckPosition);
                 }
@@ -451,7 +480,7 @@ const RoutingPage: React.FC = () => {
         <MenuItem onClick={() => { 
           handleOptimizeMenuClose(); 
           setTimeout(async () => {
-            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'default');
+            const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'default');
             if (success) setLastUpdatePosition(truckPosition);
           }, 0);
         }}>
@@ -460,7 +489,7 @@ const RoutingPage: React.FC = () => {
         <MenuItem onClick={() => { 
           handleOptimizeMenuClose(); 
           setTimeout(async () => {
-            const success = await optimizeRoute(30, truckPosition[0], truckPosition[1], 'greedy');
+            const success = await optimizeRoute(COLLECTION_THRESHOLD, truckPosition[0], truckPosition[1], 'greedy');
             if (success) setLastUpdatePosition(truckPosition);
           }, 0);
         }}>
@@ -477,7 +506,7 @@ const RoutingPage: React.FC = () => {
       <AlgorithmComparisonModal
         open={isCompareModalOpen}
         onClose={() => setIsCompareModalOpen(false)}
-        threshold={30}
+        threshold={COLLECTION_THRESHOLD}
         startLat={truckPosition[0]}
         startLng={truckPosition[1]}
       />

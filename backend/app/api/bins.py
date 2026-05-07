@@ -92,7 +92,8 @@ def create_bin(bin_data: BinCreate, db: Session = Depends(get_db), current_user:
         action="bin_added",
         bin_id=new_bin.id,
         fill_after=new_bin.fill,
-        notes=f"Bin '{new_bin.title}' added at ({new_bin.lat:.4f}, {new_bin.lng:.4f})"
+        notes=f"Bin '{new_bin.title}' added at ({new_bin.lat:.4f}, {new_bin.lng:.4f})",
+        performed_by=current_user.username,
     ))
     return new_bin
 
@@ -112,13 +113,14 @@ def update_bin(bin_id: int, bin_data: BinUpdate, db: Session = Depends(get_db), 
             bin_id=updated_bin.id,
             fill_before=fill_before,
             fill_after=updated_bin.fill,
-            notes=f"Fill updated from {fill_before}% to {updated_bin.fill}%"
+            notes=f"Fill updated from {fill_before}% to {updated_bin.fill}%",
+            performed_by=current_user.username,
         ))
     return updated_bin
 
 
 @router.post("/{bin_id}/collect", response_model=Bin)
-def collect_bin(bin_id: int, db: Session = Depends(get_db)):
+def collect_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Simulate collecting waste from a bin, resetting its fill level to 0"""
     existing = bin_crud.get(db, bin_id)
     if not existing:
@@ -131,7 +133,8 @@ def collect_bin(bin_id: int, db: Session = Depends(get_db)):
             bin_id=bin.id,
             fill_before=fill_before,
             fill_after=0,
-            notes=f"Collected '{bin.title}' — fill {fill_before}% → 0%"
+            notes=f"Collected '{bin.title}' — fill {fill_before}% → 0%",
+            performed_by=current_user.username,
         ))
     return bin
 
@@ -176,7 +179,8 @@ def delete_all_bins(db: Session = Depends(get_db), current_user: User = Depends(
     LogCRUD.create_log(db, LogCreate(
         action="bulk_delete",
         bin_id=None,
-        notes=f"All {count} bins deleted"
+        notes=f"All {count} bins deleted",
+        performed_by=current_user.username,
     ))
     return {"message": f"Deleted {count} bins"}
 
@@ -196,7 +200,8 @@ def delete_bin(bin_id: int, db: Session = Depends(get_db), current_user: User = 
         action="bin_deleted",
         bin_id=None,
         fill_before=fill_before,
-        notes=f"Bin #{bin_id} '{bin_title}' deleted"
+        notes=f"Bin #{bin_id} '{bin_title}' deleted",
+        performed_by=current_user.username,
     ))
 
 

@@ -23,15 +23,36 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     # Create a new user — password is hashed before storing
     hashed_pw = AuthService.hash_password(user_data.password)
 
+    assigned_role = UserRole.TRUCK_DRIVER if user_data.client_type == "mobile" else UserRole.ADMIN
+
     db_user = User(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_pw,
-        role=UserRole.TRUCK_DRIVER,
+        role=assigned_role,
     )
 
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
+
+def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
+    return db.query(User).offset(skip).limit(limit).all()
+
+def update_user_status(db: Session, user_id: int, is_active: bool) -> User | None:
+    user = get_user_by_id(db, user_id)
+    if user:
+        user.is_active = is_active
+        db.commit()
+        db.refresh(user)
+    return user
+
+def update_user_role(db: Session, user_id: int, role: UserRole) -> User | None:
+    user = get_user_by_id(db, user_id)
+    if user:
+        user.role = role
+        db.commit()
+        db.refresh(user)
+    return user

@@ -41,7 +41,8 @@ export const login = async (credentials: LoginCredentials): Promise<TokenRespons
 };
 
 export const register = async (credentials: RegisterCredentials): Promise<TokenResponse> => {
-  const { data } = await api.post<TokenResponse>('/api/v1/auth/register', credentials);
+  const payload = { ...credentials, client_type: 'mobile' };
+  const { data } = await api.post<TokenResponse>('/api/v1/auth/register', payload);
   return data;
 };
 
@@ -87,6 +88,12 @@ export const getLogs = async (skip = 0, limit = 50): Promise<CollectionLog[]> =>
   return data.logs;
 };
 
+export interface RouteBinEntry {
+  id: number;
+  title: string;
+  fill_level: number;
+}
+
 export interface RouteCompletedPayload {
   stops_total: number;
   collected: number;
@@ -94,6 +101,8 @@ export interface RouteCompletedPayload {
   distance_km: number;
   estimated_minutes: number;
   elapsed_seconds: number;
+  collected_bins?: RouteBinEntry[];
+  skipped_bins?: RouteBinEntry[];
 }
 
 export const logRouteCompleted = async (payload: RouteCompletedPayload): Promise<void> => {
@@ -153,6 +162,55 @@ export const getRoadAnomalies = async (skip = 0, limit = 500): Promise<RoadAnoma
     params: { skip, limit },
   });
   return data.anomalies;
+}
+// Tracking
+export interface TrackingStartPayload {
+  route_stops: RouteResponse['route_sequence'];
+  route_geometry: RouteResponse['route_geometry'];
+  current_lat: number;
+  current_lng: number;
+}
+
+
+export const startTrackingSession = async (payload: TrackingStartPayload): Promise<void> => {
+  await api.post('/api/v1/tracking/start', payload);
 };
+
+export interface TrackingPositionPayload {
+  lat: number;
+  lng: number;
+  current_stop_index: number;
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+export const updateTrackingPosition = (payload: TrackingPositionPayload): void => {
+  // Fire-and-forget — must not block the GPS callback
+  api.put('/api/v1/tracking/position', payload).catch(() => { });
+};
+
+export interface TrackingCompletePayload {
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+export const completeTrackingSession = async (payload: TrackingCompletePayload): Promise<void> => {
+  await api.post('/api/v1/tracking/complete', payload);
+};
+
+// Tracking
+export interface TrackingStartPayload {
+  route_stops: RouteResponse['route_sequence'];
+  route_geometry: RouteResponse['route_geometry'];
+  current_lat: number;
+  current_lng: number;
+}
+
+export interface TrackingCompletePayload {
+  collected_ids: number[];
+  skipped_ids: number[];
+}
+
+
 
 export default api;

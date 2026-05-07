@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import LogsPage from './pages/LogsPage/LogsPage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
+import UsersPage from './pages/UsersPage/UsersPage';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -44,14 +45,15 @@ function AppRoutes() {
   }
 
   return (
-    <Box sx={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <Box sx={{ width: '100vw', height: '100vh', position: 'relative', display: 'flex' }}>
       <Sidebar />
-      <Box sx={{ width: '100%', height: '100%' }}>
+      <Box sx={{ flexGrow: 1, height: '100%', ml: '60px', width: 'calc(100% - 60px)', overflow: 'auto' }}>
         <Routes>
           <Route path="/" element={<Navigate to="/route" replace />} />
           <Route path="/route" element={<RoutingPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/logs" element={<LogsPage />} />
+          <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<Navigate to="/route" replace />} />
         </Routes>
       </Box>

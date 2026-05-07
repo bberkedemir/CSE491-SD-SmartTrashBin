@@ -57,6 +57,7 @@ export interface RegisterCredentials {
   email: string;
   full_name: string;
   password: string;
+  client_type?: string;
 }
 
 export interface TokenResponse {
