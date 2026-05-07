@@ -1,0 +1,53 @@
+{
+  "sessionId": "road-1778156837570",
+  "startedAt": "2026-05-07T12:27:17.570Z",
+  "endedAt": "2026-05-07T12:27:22.689Z",
+  "pointCount": 5,
+  "points": [
+    {
+      "timestamp": "2026-05-07T12:27:16.742Z",
+      "latitude": 36.8978117,
+      "longitude": 30.650125,
+      "accuracy": 5.480000019073486,
+      "altitude": 68.69999694824219,
+      "heading": 0,
+      "speed": 0
+    },
+    {
+      "timestamp": "2026-05-07T12:27:16.742Z",
+      "latitude": 36.8978117,
+      "longitude": 30.650125,
+      "accuracy": 5.480000019073486,
+      "altitude": 68.69999694824219,
+      "heading": 0,
+      "speed": 0
+    },
+    {
+      "timestamp": "2026-05-07T12:27:19.702Z",
+      "latitude": 36.8977933,
+      "longitude": 30.650115,
+      "accuracy": 10.338000297546387,
+      "altitude": 68.69999694824219,
+      "heading": 0,
+      "speed": 0
+    },
+    {
+      "timestamp": "2026-05-07T12:27:20.702Z",
+      "latitude": 36.8977783,
+      "longitude": 30.6501217,
+      "accuracy": 10.270999908447266,
+      "altitude": 68.69999694824219,
+      "heading": 0,
+      "speed": 0
+    },
+    {
+      "timestamp": "2026-05-07T12:27:21.701Z",
+      "latitude": 36.89777,
+      "longitude": 30.65014,
+      "accuracy": 10.204000473022461,
+      "altitude": 68.69999694824219,
+      "heading": 0,
+      "speed": 0
+    }
+  ]
+}
