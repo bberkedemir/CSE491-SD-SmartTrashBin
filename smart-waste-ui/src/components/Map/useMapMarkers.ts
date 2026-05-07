@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { BinPoint, NewBinData, RouteStop, DriverSession, RoadAnomaly } from '../../types/bin';
+import type { Truck } from '../../types/truck';
 import {
     createMarkerPopupHtml,
     createAddMarkerPopupHtml,
@@ -30,6 +31,7 @@ export function useMapMarkers(
     driverSessions?: DriverSession[],
     getDriverColor?: (driverId: number) => string,
     threshold: number = 30,
+    driverTrucks?: Record<number, Truck>,
 ) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
@@ -297,8 +299,13 @@ export function useMapMarkers(
             const color = getDriverColor ? getDriverColor(session.driver_id) : '#e53935';
             const pickupStops = session.route_stops.filter(s => s.type === 'pickup');
             const done = session.collected_ids.length + session.skipped_ids.length;
+            const truck = driverTrucks?.[session.driver_id];
+            const truckLine = truck
+                ? `<span style="color:#555;font-size:11px">🚛 ${truck.license_plate} &nbsp;·&nbsp; ${truck.model}</span><br>`
+                : '';
             const popupHtml = `
                 <b>${session.driver_full_name}</b><br>
+                ${truckLine}
                 Progress: ${done}/${pickupStops.length} stops<br>
                 Collected: ${session.collected_ids.length} &nbsp;|&nbsp; Skipped: ${session.skipped_ids.length}
             `;
@@ -316,6 +323,7 @@ export function useMapMarkers(
             if (existing) {
                 existing.setLatLng([session.lat, session.lng]);
                 existing.setPopupContent(popupHtml);
+                existing.setIcon(driverIcon);
             } else {
                 const marker = L.marker([session.lat, session.lng], { icon: driverIcon })
                     .addTo(map)
@@ -323,10 +331,8 @@ export function useMapMarkers(
                 driverMarkersRef.current.set(session.driver_id, marker);
             }
 
-            // Route polyline — rebuild every update (geometry doesn't change often)
-            const oldPoly = driverPolylinesRef.current.get(session.driver_id);
-            if (oldPoly) oldPoly.remove();
-            if (session.route_geometry.length > 0) {
+            // Route polyline — build once; only rebuild if not yet created
+            if (!driverPolylinesRef.current.has(session.driver_id) && session.route_geometry.length > 0) {
                 const poly = L.polyline(session.route_geometry as L.LatLngExpression[], {
                     color,
                     weight: 4,
@@ -354,7 +360,7 @@ export function useMapMarkers(
                 });
             driverCirclesRef.current.set(session.driver_id, circles);
         });
-    }, [driverSessions, getDriverColor]);
+    }, [driverSessions, getDriverColor, driverTrucks]);
 
     return mapRef;
 }

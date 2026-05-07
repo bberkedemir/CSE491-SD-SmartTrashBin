@@ -235,8 +235,8 @@ export default function MapScreen() {
             onPress={() => setSelectedBin(bin)}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={[styles.markerOuter, { borderColor: markerBorderColor(bin.fill) }]}>
-              <View style={[styles.markerInner, { backgroundColor: markerColor(bin.fill) }]}>
+            <View style={styles.markerWrapper}>
+              <View collapsable={false} style={[styles.markerBubble, { backgroundColor: markerColor(bin.fill) }]}>
                 <Text style={styles.markerText}>{bin.fill}%</Text>
               </View>
             </View>
@@ -323,10 +323,9 @@ export default function MapScreen() {
       {/* Legend */}
       <View style={styles.legend}>
         {[
-          { color: '#2e7d32', label: '<50%' },
-          { color: '#f9a825', label: '50–75%' },
-          { color: '#e65100', label: '75–90%' },
-          { color: '#c62828', label: '>90%' },
+          { color: '#2ed573', label: '<30%' },
+          { color: '#ffa502', label: '30–79%' },
+          { color: '#ff4757', label: '≥80%' },
           { color: '#7b1fa2', label: 'Road anomaly' },
         ].map((l) => (
           <View key={l.label} style={styles.legendItem}>
@@ -476,27 +475,21 @@ const fillBarStyles = StyleSheet.create({
   bar: { height: '100%', borderRadius: 5 },
 });
 
-function markerColor(fill: number) {
-  if (fill >= 90) return '#c62828';
-  if (fill >= 75) return '#e65100';
-  if (fill >= 50) return '#f9a825';
-  return '#2e7d32';
-}
+const COLLECTION_THRESHOLD = 30;
 
-function markerBorderColor(fill: number) {
-  if (fill >= 90) return '#b71c1c';
-  if (fill >= 75) return '#bf360c';
-  if (fill >= 50) return '#f57f17';
-  return '#1b5e20';
+function markerColor(fill: number) {
+  if (fill >= 80) return '#ff4757';
+  if (fill >= COLLECTION_THRESHOLD) return '#ffa502';
+  return '#2ed573';
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
 
-  markerOuter: { borderRadius: 20, borderWidth: 2, padding: 2, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 2, elevation: 4 },
-  markerInner: { borderRadius: 14, paddingHorizontal: 6, paddingVertical: 3 },
-  markerText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  markerWrapper: { padding: 3 },
+  markerBubble: { borderRadius: 10, borderWidth: 2, borderColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, elevation: 3 },
+  markerText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
 
   anomalyMarkerOuter: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', borderWidth: 2, borderColor: '#4a148c', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
   anomalyMarkerInner: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#7b1fa2', justifyContent: 'center', alignItems: 'center' },
