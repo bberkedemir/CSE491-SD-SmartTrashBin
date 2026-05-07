@@ -8,6 +8,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import type { DriverSession, DriverRouteStop } from '../../types/bin';
+import type { Truck } from '../../types/truck';
 
 interface DriverPanelProps {
     sessions: DriverSession[];
@@ -16,6 +17,7 @@ interface DriverPanelProps {
     getColor: (driverId: number) => string;
     onDriverClick: (session: DriverSession) => void;
     onCancelSession?: (driverId: number) => void;
+    driverTrucks?: Record<number, Truck>;
 }
 
 function getFillColor(fill: number): string {
@@ -65,6 +67,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     getColor,
     onDriverClick,
     onCancelSession,
+    driverTrucks,
 }) => {
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -117,6 +120,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                 const progress = totalStops > 0 ? (done / totalStops) * 100 : 0;
                 const color = getColor(session.driver_id);
                 const currentStop = pickupStops[session.current_stop_index] ?? null;
+                const truck = driverTrucks?.[session.driver_id];
                 const elapsedMs = Date.now() - new Date(session.started_at).getTime();
                 const elapsedMin = Math.floor(elapsedMs / 60000);
                 const isExpanded = expandedIds.has(session.driver_id);
@@ -139,9 +143,16 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                         >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
                                 <LocalShippingIcon sx={{ color, fontSize: 18 }} />
-                                <Typography variant="body2" fontWeight={700} noWrap sx={{ flex: 1 }}>
-                                    {session.driver_full_name}
-                                </Typography>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={700} noWrap>
+                                        {session.driver_full_name}
+                                    </Typography>
+                                    {truck && (
+                                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.2 }}>
+                                            {truck.license_plate} · {truck.model}
+                                        </Typography>
+                                    )}
+                                </Box>
                                 <Typography variant="caption" color="text.secondary">
                                     {elapsedMin}m
                                 </Typography>
