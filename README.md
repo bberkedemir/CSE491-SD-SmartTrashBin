@@ -1,11 +1,11 @@
-# SmartTrashBin
+# Campus Sense
 
 <p align="center">
-  <img src="smart-waste-ui/src/assets/logo.png" alt="SmartTrashBin logo" width="120" />
+  <img src="smart-waste-ui/src/assets/logo.png" alt="Campus Sense logo" width="120" />
 </p>
 
 <p align="center">
-  <strong>Smart waste collection, driver routing, IoT fill monitoring, and road anomaly detection in one platform.</strong>
+  <strong>Campus operations platform for smart waste collection, driver routing, IoT fill monitoring, and road anomaly detection.</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ## Overview
 
-SmartTrashBin is a CSE491 Software Design project that models a smart municipal waste workflow from sensor data to collection execution. The system combines a FastAPI backend, PostgreSQL persistence, a React admin dashboard, an Expo driver app, ESP32 ultrasonic sensor firmware, route optimization algorithms, live driver tracking, and a YOLO-based road anomaly detection pipeline.
+Campus Sense is a CSE491 Software Design project that models a smarter campus operations workflow from sensor data to collection execution and road-condition awareness. The system combines a FastAPI backend, PostgreSQL persistence, a React admin dashboard, an Expo driver app, ESP32 ultrasonic sensor firmware, route optimization algorithms, live driver tracking, and a YOLO-based road anomaly detection pipeline.
 
 The goal is to reduce unnecessary collection trips while giving operators and drivers a real-time view of bin status, optimized routes, collection logs, and road-condition evidence captured during routes.
 
